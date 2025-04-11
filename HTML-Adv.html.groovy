@@ -47,14 +47,27 @@ void printDataRow(def row, def columns) {
         def str = FORMATTER.format(row, col)
         if (value == null || value.toString().isEmpty()) {
             OUT.append("  <td class='empty' data-column-index='${colIndex + 1}'>null</td>$NEWLINE")
-        } else if (isJSON(value.toString())) {
-            def nestedTableId = "nested-" + row.rowNumber() + "-" + col.columnNumber()
-            def documentPath = "\$.${col.name()}"
-            OUT.append("  <td data-column-index='${colIndex + 1}'><span class='expand-collapse' id='icon-").append(nestedTableId).append("' onclick='toggleNested(\"").append(nestedTableId).append("\")'>[+]</span>")
-            OUT.append(" ").append(col.name()).append(" {}")
-            OUT.append("<div style='display:none' id='").append(nestedTableId).append("'>")
-            OUT.append(convertToHTMLTable(new JsonSlurper().parseText(value.toString()), nestedTableId, documentPath))
-            OUT.append("</div></td>$NEWLINE")
+        
+        } else if (looksLikeJSON(value.toString())) {
+            def jsonValue
+            try {
+                jsonValue = new JsonSlurper().parseText(value.toString())
+            } catch (e) {
+                jsonValue = null
+            }
+
+            if (jsonValue != null) {
+                def nestedTableId = "nested-" + row.rowNumber() + "-" + col.columnNumber()
+                def documentPath = "\$.${col.name()}"
+                OUT.append("  <td data-column-index='${colIndex + 1}'><span class='expand-collapse' id='icon-${nestedTableId}' onclick='toggleNested(\"${nestedTableId}\")'>[+]</span>")
+                OUT.append(" ${col.name()} {}")
+                OUT.append("<div style='display:none' id='${nestedTableId}'>")
+                OUT.append(convertToHTMLTable(jsonValue, nestedTableId, documentPath))
+                OUT.append("</div></td>$NEWLINE")
+            } else {
+                def escaped = escapeXmlEntities(str)
+                OUT.append("  <td data-column-index='${colIndex + 1}'>$escaped</td>$NEWLINE")
+            }
         } else {
             def escaped = str ==~ HTML_PATTERN
                 ? str
@@ -105,6 +118,13 @@ void generateHTML() {
 }
 
 // Function to check if a string is valid JSON
+// Function to check if a string looks like JSON without throwing
+boolean looksLikeJSON(String str) {
+    if (!str) return false;
+    str = str.trim();
+    return (str.startsWith("{") && str.endsWith("}")) || (str.startsWith("[") && str.endsWith("]"));
+}
+
 boolean isJSON(String str) {
     if (str == null || str.isEmpty()) {
         return false
@@ -136,7 +156,7 @@ String generateHTMLStyle() {
     return """
 <style>
 body { font-family: 'Consolas', 'Courier New', Courier, monospace; font-size: 11pt !important; padding-top: 50px; }
-table { border-collapse: collapse; width: 100%; }
+table { border-collapse: collapse; width: auto; max-width: 100%; }
 table th, table td { border: 1px solid #ddd; padding: 8px; white-space: nowrap; font-size: 11pt !important; }
 table th { background-color: #f2f2f2; cursor: pointer; }
 table tr:nth-child(even) { background-color: #f9f9f9; }
@@ -466,9 +486,98 @@ String generateToggleEditModeScript() {
 
 
 String generatePromoteFieldScript() {
+
     return """
     <script>
     var promotedFields = [];
+
+    /**
+     * Extract a value from a JSON object using a dot-notation path
+     * Handles nested objects, arrays, and edge cases
+     * 
+     * @param {Object|Array} obj - The JSON object or array to extract from
+     * @param {String} path - Dot notation path (e.g. "person.address.city" or "items.0.name")
+     * @return {*} The extracted value or undefined if not found
+     */
+    function getValueFromJsonPath(obj, path) {
+        // Handle empty inputs
+        if (obj === null || obj === undefined || !path) {
+            return undefined;
+        }
+        
+        // Handle string JSON that needs parsing
+        let data = obj;
+        if (typeof data === 'string') {
+            try {
+                data = JSON.parse(data);
+            } catch (e) {
+                console.log('Failed to parse JSON string:', e);
+                return undefined;
+            }
+        }
+        
+        // Split the path into parts and process
+        const parts = path.split('.');
+        let current = data;
+        
+        // Process each path segment
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            
+            // Return undefined if we hit a dead end
+            if (current === null || current === undefined) {
+                return undefined;
+            }
+            
+            // Handle array indexing
+            if (Array.isArray(current)) {
+                // Handle numeric indices
+                if (!isNaN(part)) {
+                    const index = parseInt(part, 10);
+                    if (index >= 0 && index < current.length) {
+                        current = current[index];
+                        continue;
+                    }
+                } 
+                
+                // If not a valid index, search for objects with the key
+                // This supports paths like "items.name" to get all names from items array
+                if (i === parts.length - 1) {
+                    // If this is the last part and we're in an array, try to collect all values
+                    const values = current
+                        .filter(item => item && typeof item === 'object')
+                        .map(item => item[part])
+                        .filter(val => val !== undefined);
+                    
+                    return values.length > 0 ? values : undefined;
+                } else {
+                    // If not the last part, try to find first match and continue
+                    const matchingItem = current.find(item => 
+                        item && typeof item === 'object' && part in item
+                    );
+                    
+                    if (matchingItem) {
+                        current = matchingItem[part];
+                    } else {
+                        return undefined;
+                    }
+                }
+            } 
+            // Handle object properties
+            else if (typeof current === 'object') {
+                if (part in current) {
+                    current = current[part];
+                } else {
+                    return undefined;
+                }
+            } else {
+                // We've hit a primitive value but still have path segments
+                return undefined;
+            }
+        }
+        
+        return current;
+    }
 
     function promoteField(jsonPath, fieldName) {
         if (!promotedFields.includes(jsonPath)) {
@@ -478,93 +587,64 @@ String generatePromoteFieldScript() {
     }
 
     function updateMainTable() {
-        // Get the main table and its header row
-        var table = document.getElementById('data-table');
-        var headerRow = table.rows[0];
+    var table = document.getElementById('data-table');
+    var headerRow = table.rows[0];
 
-        // Add new columns for promoted fields if they don't already exist
-promotedFields.forEach(function(jsonPath) {
-    var parts = jsonPath.split('.');
-    var column = parts[1];  // Corrected: Get the top-level column name
-    var fieldName = parts.pop();
-    if (!Array.from(headerRow.cells).some(cell => cell.innerText === fieldName)) {
-        var th = document.createElement('th');
-        th.innerText = fieldName;
-        var jsonColumnIndex = Array.from(headerRow.cells).findIndex(cell => cell.innerText === column);
-        headerRow.insertBefore(th, headerRow.cells[jsonColumnIndex + 1]);
-    }
-});
+    // Track existing column headers by name
+    let existingHeaders = Array.from(headerRow.cells).map(cell => cell.innerText);
 
-        // Update each row with the specific value from the inner JSON
-        for (var i = 1; i < table.rows.length; i++) {
-            var row = table.rows[i];
-            var rowData = JSON.parse(row.getAttribute('data-row'));  // Ensure data-row contains JSON data
-            console.log('Row Data:', rowData);  // Debugging log
-promotedFields.forEach(function(jsonPath) {
-    var parts = jsonPath.split('.');
-    var column = parts[1];  // Corrected: Get the top-level column name
-    var innerPath = parts.slice(2).join('.');  // Get the remaining path for inner JSON
-    console.log('Promoting field:', jsonPath);  // Debugging log
-    console.log('Column:', column);  // Debugging log
-    console.log('Inner Path:', innerPath);  // Debugging log
-    var value = rowData[column];  // Retrieve the JSON block from the specified column
-    console.log('Value:', value);  // Debugging log
+    promotedFields.forEach(function(jsonPath) {
+        var parts = jsonPath.split('.');
+        var column = parts[1];  // e.g., "profile"
+        var fieldName = parts[parts.length - 1]; // e.g., "email"
+        var innerPath = parts.slice(2).join('.'); // e.g., "user.details.contact.email"
 
-    // Parse inner JSON if necessary
-    if (value && typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
-        try {
-            value = JSON.parse(value);
-            console.log('JSON Parsed value:', value);
-        } catch (e) {
-            console.log('JSON parse error:', e);
-        }
-    }
+        // Skip if column already exists
+        if (!existingHeaders.includes(fieldName)) {
+            var jsonColumnIndex = Array.from(headerRow.cells).findIndex(cell => cell.innerText === column);
+    var insertAt = jsonColumnIndex + 1;
 
-    // Use the remaining path to extract the specific value
-    value = getValueFromJsonPath(value, innerPath);
+    // Create header <th>
+    var th = document.createElement('th');
+    th.innerText = fieldName;
+    var jsonPathDiv = document.createElement('div');
+    jsonPathDiv.className = 'json-path';
+    jsonPathDiv.innerText = jsonPath;
+    th.appendChild(jsonPathDiv);
+    th.setAttribute('data-column-index', insertAt);
+    th.setAttribute('data-sort-dir', 'desc');
+    th.onclick = function() { sortColumn(insertAt); };
+    headerRow.insertBefore(th, headerRow.cells[insertAt]);
 
-    console.log('Parsed Value:', value);  // Debugging log
-    var td = document.createElement('td');
+            // For each data row
+            for (var i = 1; i < table.rows.length; i++) {
+                var row = table.rows[i];
+                var rowData = JSON.parse(row.getAttribute('data-row'));
+                var value = rowData[column];
+
+                // If value is stringified JSON, parse it
+                if (value && typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+                    try {
+                        value = JSON.parse(value);
+                    } catch (e) {
+                        console.warn("Failed to parse nested JSON:", e);
+                    }
+                }
+
+                value = getValueFromJsonPath(value, innerPath);
+
+                var td = document.createElement('td');
     td.innerText = value !== undefined && value !== null ? value : 'undefined';
-    var jsonColumnIndex = Array.from(headerRow.cells).findIndex(cell => cell.innerText === column);
-    row.insertBefore(td, row.cells[jsonColumnIndex + 1]);
-});
+    td.setAttribute('data-column-index', insertAt);
+    row.insertBefore(td, row.cells[insertAt]);
+            }
         }
-        promotedFields = [];
-    }
+    });
 
-
-function getValueFromJsonPath(obj, path) {
-    console.log('Navigating path:', path);
-    console.log('Starting object:', JSON.stringify(obj, null, 2)); // Pretty print the object
-
-    return path.split('.').reduce((acc, part) => {
-        console.log('Current part:', part);
-        console.log('Current accumulator:', JSON.stringify(acc, null, 2)); // Pretty print the accumulator
-
-        if (acc === null || acc === undefined) {
-            console.log('Accumulator is null or undefined. Path not found.');
-            return undefined;
-        }
-
-        if (Array.isArray(acc)) {
-            part = isNaN(part) ? part : parseInt(part, 10);
-            console.log('Array index:', part);
-        }
-
-        if (typeof acc === 'object' && acc !== null && !(part in acc)) {
-            console.log('Part not found in current accumulator.', part);
-            const jsonObject = JSON.parse(JSON.stringify(acc, null, 2));
-            value = jsonObject[0][part];
-            console.log('test value: ', value);
-            return value;
-
-            return undefined;
-        }
-
-        return acc[part];
-    }, obj);
+    // Clear promoted fields after applying
+    promotedFields = [];
 }
+
     </script>
     """
 }
@@ -637,14 +717,20 @@ Set collectHeaders(def columns) {
 }
 
 // Function to convert JSON to HTML table
-String convertToHTMLTable(def json, String tableId, String parentPath = "\$") {
-    if (json instanceof Map) {
-        return convertMapToHTMLTable(json, tableId, parentPath)
-    } else if (json instanceof List) {
-        return convertListToHTMLTable(json, tableId, parentPath)
+String convertToHTMLTable(def data, String tableId, String currentPath) {
+    if (data instanceof Map) {
+        return convertMapToHTMLTable(data, tableId, currentPath)
+    } else if (data instanceof List) {
+        if (!data.isEmpty() && data[0] instanceof Map) {
+            return convertListOfMapsToTable(data, tableId, currentPath)
+        } else {
+            return convertListToHTMLTable(data, tableId, currentPath)
+        }
+    } else {
+        return escapeXmlEntities(data?.toString() ?: "null")
     }
-    return ""
 }
+
 
 // Function to convert List to HTML table with hidden JSON path divs and promotion links
 String convertListToHTMLTable(List list, String tableId, String parentPath) {
@@ -653,6 +739,17 @@ String convertListToHTMLTable(List list, String tableId, String parentPath) {
     def headers = new LinkedHashSet()
 
     // Collect all unique headers from the list of maps
+    if (headers.isEmpty()) {
+        // If it's a list of primitives, show Index + Value
+        def primitiveHtml = new StringBuilder()
+        primitiveHtml.append("<table id='").append(tableId).append("' class='nested-table'><thead><tr><th>Index</th><th>Value</th></tr></thead><tbody>")
+        list.eachWithIndex { item, index ->
+            primitiveHtml.append("<tr><td>").append(index).append("</td><td>").append(item?.toString() ?: 'null').append("</td></tr>")
+        }
+        primitiveHtml.append("</tbody></table>")
+        return primitiveHtml.toString()
+    }
+
     list.each { item ->
         if (item instanceof Map) {
             headers.addAll(item.keySet())
@@ -664,7 +761,9 @@ String convertListToHTMLTable(List list, String tableId, String parentPath) {
         def headerPath = parentPath + "." + header
         html.append("<th title='Path: ${headerPath}'>").append(header)
         html.append("<div class='json-path'>").append(headerPath).append("</div>")
-        html.append(" <a href='#' class='promote-link' onclick='promoteField(\"${headerPath}\", \"${header}\")' style='display:none;'>Promote</a></th>")
+        if (!(value instanceof Map) && !(value instanceof List)) {
+            html.append(" <a href='#' class='promote-link' title='Promote field' style='display:none; color:#007BFF; font-weight:bold; text-decoration:none;' onclick='promoteField(\"${headerPath}\", \"${header}\")'>+</a></th>")
+        }
     }
     html.append("</tr></thead><tbody>")
 
@@ -711,7 +810,9 @@ String convertMapToHTMLTable(Map map, String tableId, String parentPath) {
         def documentPath = parentPath + "." + key
         html.append("<tr><td class='key' title='Path: ${documentPath}'>").append(key)
         html.append("<div class='json-path'>").append(documentPath).append("</div>")
-        html.append(" <a href='#' class='promote-link' onclick='promoteField(\"${documentPath}\", \"${key}\")' style='display:none;'>Promote</a></td>")
+        if (!(value instanceof Map) && !(value instanceof List)) {
+            html.append(" <a href='#' class='promote-link' title='Promote field' style='display:none; color:#007BFF; font-weight:bold; text-decoration:none;' onclick='promoteField(\"${documentPath}\", \"${key}\")'>+</a></td>")
+        }
         html.append("<td>")
         if (value instanceof Map || value instanceof List) {
             def nestedTableId = tableId + "-" + key
@@ -730,3 +831,28 @@ String convertMapToHTMLTable(Map map, String tableId, String parentPath) {
     html.append("</tbody></table>")
     return html.toString()
 }
+
+String convertListOfMapsToTable(List<Map> list, String tableId, String path) {
+    def headers = list.collectMany { it.keySet() }.unique()
+    def sb = new StringBuilder()
+    sb.append("<table id='${tableId}' class='nested-table'><thead><tr><th>Index</th>")
+    headers.each { key ->
+        sb.append("<th>${escapeXmlEntities(key.toString())}</th>")
+    }
+    sb.append("</tr></thead><tbody>")
+    list.eachWithIndex { item, index ->
+        sb.append("<tr><td>${index}</td>")
+        headers.each { key ->
+            def val = item[key]
+            def nestedPath = path + "[" + index + "]." + key
+            def cell = (val instanceof Map || val instanceof List)
+                ? convertToHTMLTable(val, "${tableId}-${index}-${key}", nestedPath)
+                : escapeXmlEntities(val?.toString() ?: "null")
+            sb.append("<td>${cell}</td>")
+        }
+        sb.append("</tr>")
+    }
+    sb.append("</tbody></table>")
+    return sb.toString()
+}
+

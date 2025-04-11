@@ -1,0 +1,4 @@
+This is required as DataGrip does not like shortcuts
+
+mklink /H "C:\Users\samue\AppData\Roaming\JetBrains\DataGrip2022.3\extensions\com.intellij.database\data\extractors\HTML-Adv.html.groovy" "C:\Users\samue\Documents\GitHub\DataGripExports\HTML-Adv.html.groovy"
+Hardlink created for C:\Users\samue\AppData\Roaming\JetBrains\DataGrip2022.3\extensions\com.intellij.database\data\extractors\HTML-Adv.html.groovy <<===>> C:\Users\samue\Documents\GitHub\DataGripExports\HTML-Adv.html.groovy
