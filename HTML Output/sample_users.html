@@ -1,0 +1,408 @@
+
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>JSON to HTML Table</title>
+        <meta charset="UTF-8">
+    
+<style>
+body { font-family: 'Consolas', 'Courier New', Courier, monospace; font-size: 11pt !important; padding-top: 50px; }
+table { border-collapse: collapse; width: 100%; }
+table th, table td { border: 1px solid #ddd; padding: 8px; white-space: nowrap; font-size: 11pt !important; }
+table th { background-color: #f2f2f2; cursor: pointer; }
+table tr:nth-child(even) { background-color: #f9f9f9; }
+table tr:hover { background-color: #f1f1f1; }
+.highlighted { background-color: #ffffcc !important; }
+.nested-table th, .nested-table td { background-color: white !important; }
+.nested-table tr { background-color: unset !important; }
+.nested-table tr:nth-child(even) { background-color: #ffffff !important; }
+.nested-table tr:nth-child(odd) { background-color: #f9f9f9 !important; }
+.nested-table tr:hover { background-color: #f1f1f1 !important; }
+.array { background-color: #e7f3f7; }
+.empty { color: #bbb; }
+.expand-collapse { cursor: pointer; color: #007BFF; }
+.expand-collapse:hover { text-decoration: underline; }
+.row-number { font-size: 8pt; color: #555; !important;}
+.top-menu { position: fixed; top: 0; left: 0; width: 100%; background-color: #002855; padding: 10px; z-index: 1000; }
+.top-menu button { margin-right: 10px; background-color: #007BFF; color: white; border: none; padding: 10px 20px; font-family: 'Consolas', 'Courier New', Courier, monospace; font-size: 11pt; border-radius: 4px; cursor: pointer; }
+.top-menu button:hover { background-color: #0056b3; }
+.top-menu input { padding: 10px; font-size: 11pt; }
+.overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; }
+.overlay-content { background-color: white; padding: 20px; border-radius: 10px; max-height: 80%; overflow-y: auto; }
+.overlay-content h3 { margin-top: 0; }
+.overlay-content .indent-0 { margin-left: 0; }
+.overlay-content .indent-1 { margin-left: 20px; }
+.overlay-content .indent-2 { margin-left: 40px; }
+.overlay-content .indent-3 { margin-left: 60px; }
+.overlay-content .indent-4 { margin-left: 80px; }
+.overlay-content .indent-5 { margin-left: 100px; }
+.key { color: darkblue; }
+.json-path { color: gray; display: none; }
+</style>
+    
+    <script>
+    function showColumnOverlay() {
+        var overlay = document.getElementById('column-overlay');
+        overlay.style.display = 'flex';
+    }
+
+    function hideColumnOverlay() {
+        var overlay = document.getElementById('column-overlay');
+        overlay.style.display = 'none';
+    }
+    </script>
+    
+    <script>
+    function toggleColumnVisibility(tableId, colIndex, checkbox) {
+        var table = document.getElementById(tableId);
+        var rows = table.rows;
+        var isHidden = !checkbox.checked;
+        for (var i = 0; i < rows.length; i++) {
+            var cell = rows[i].cells[colIndex];
+            if (cell) {
+                cell.style.display = isHidden ? 'none' : '';
+            }
+        }
+    }
+    </script>
+    
+    <script>
+    function showAllColumns() {
+        var table = document.getElementById('data-table');
+        var rows = table.rows;
+        for (var i = 0; i < rows[0].cells.length; i++) {
+            for (var j = 0; j < rows.length; j++) {
+                rows[j].cells[i].style.display = '';
+            }
+        }
+        // Also ensure all checkboxes in the overlay are checked
+        var checkboxes = document.querySelectorAll('#column-overlay input[type="checkbox"]');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = true;
+        });
+    }
+    </script>
+    
+    <script>
+    function toggleJSONPaths() {
+        var paths = document.querySelectorAll('.json-path');
+        var toggleButton = document.querySelector('button[onclick="toggleJSONPaths()"]');
+        var pathsVisible = paths[0].style.display === 'block';
+
+        paths.forEach(function(path) {
+            if (pathsVisible) {
+                path.style.display = 'none';
+            } else {
+                path.style.display = 'block';
+            }
+        });
+
+        // Update button text
+        if (pathsVisible) {
+            toggleButton.textContent = 'Show JSON Paths';
+        } else {
+            toggleButton.textContent = 'Hide JSON Paths';
+        }
+    }
+    </script>
+    
+    <script>
+    function initializeJSONPaths() {
+        var paths = document.querySelectorAll('.json-path');
+        paths.forEach(function(path) {
+            path.style.display = 'none';
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeJSONPaths();
+    });
+    </script>
+    
+    <script>
+    var searchTimeout;
+
+    function delayedSearch() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(searchTable, 300);  // Adjust the delay as needed
+    }
+
+    function searchTable() {
+        var input = document.getElementById('search-bar');
+        var filter = input.value.toLowerCase();
+        var table = document.getElementById('data-table');
+        var rows = table.getElementsByTagName('tr');
+
+        // Function to recursively search in nested tables
+        function searchInNestedTable(nestedTable) {
+            var nestedRows = nestedTable.getElementsByTagName('tr');
+            for (var k = 0; k < nestedRows.length; k++) {
+                var nestedCells = nestedRows[k].getElementsByTagName('td');
+                var nestedRowContainsFilter = false;
+                for (var l = 0; l < nestedCells.length; l++) {
+                    if (nestedCells[l] && nestedCells[l].innerText.toLowerCase().indexOf(filter) > -1) {
+                        nestedRowContainsFilter = true;
+                        break;
+                    }
+                }
+                nestedRows[k].style.display = nestedRowContainsFilter ? '' : 'none';
+            }
+        }
+
+        for (var i = 1; i < rows.length; i++) { // Start from 1 to skip the header row
+            var cells = rows[i].getElementsByTagName('td');
+            var rowContainsFilter = false;
+            for (var j = 0; j < cells.length; j++) {
+                if (cells[j] && cells[j].innerText.toLowerCase().indexOf(filter) > -1) {
+                    rowContainsFilter = true;
+                    break;
+                }
+            }
+            rows[i].style.display = rowContainsFilter ? '' : 'none';
+
+            // Check nested tables
+            var nestedTables = rows[i].getElementsByClassName('nested-table');
+            for (var m = 0; m < nestedTables.length; m++) {
+                searchInNestedTable(nestedTables[m]);
+            }
+        }
+    }
+    </script>
+    
+    <script>
+    function highlightRow(row) {
+        // Check if the row belongs to the main table
+        var table = row.closest('table');
+        if (table && table.id === 'data-table') {
+            var highlighted = document.querySelectorAll('#data-table .highlighted');
+            highlighted.forEach(function(item) {
+                item.classList.remove('highlighted');
+            });
+            row.classList.add('highlighted');
+        }
+    }
+    </script>
+    
+    <script>
+    function sortColumn(index) {
+        try {
+            var table = document.getElementById('data-table');
+            if (!table) {
+                alert('Table not found!');
+                return;
+            }
+            var rows = Array.from(table.rows).slice(1); // Skip the header row
+            var header = table.querySelector('th[data-column-index="' + index + '"]');
+            var sortDir = header.getAttribute('data-sort-dir') === 'asc' ? 'desc' : 'asc';
+            header.setAttribute('data-sort-dir', sortDir);
+
+            rows.sort(function(rowA, rowB) {
+                var cellA = rowA.cells[index].innerText;
+                var cellB = rowB.cells[index].innerText;
+
+                if (!isNaN(cellA) && !isNaN(cellB)) {
+                    cellA = parseFloat(cellA);
+                    cellB = parseFloat(cellB);
+                }
+
+                if (sortDir === 'asc') {
+                    return cellA > cellB ? 1 : -1;
+                } else {
+                    return cellA < cellB ? 1 : -1;
+                }
+            });
+
+            rows.forEach(function(row, i) {
+                row.cells[0].innerText = i + 1;  // Rewrite row numbers
+                table.appendChild(row);
+            });
+        } catch (error) {
+            alert('Error: ' + error.message);
+        }
+    }
+    </script>
+    
+    <script>
+    function toggleNested(tableId) {
+        var table = document.getElementById(tableId);
+        var display = table.style.display === 'none' ? 'table-row-group' : 'none';
+        table.style.display = display;
+        var icon = document.getElementById('icon-' + tableId);
+        icon.innerHTML = display === 'none' ? '[+]' : '[-]';
+    }
+    </script>
+    
+    <script>
+    function toggleAllNested(expand) {
+        var icons = document.querySelectorAll('.expand-collapse');
+        icons.forEach(icon => {
+            var tableId = icon.id.replace('icon-', '');
+            var table = document.getElementById(tableId);
+            var display = expand ? 'table-row-group' : 'none';
+            table.style.display = display;
+            icon.innerHTML = expand ? '[-]' : '[+]';
+        });
+    }
+    </script>
+    
+    <script>
+    function selectAllColumns() {
+        var checkboxes = document.querySelectorAll('#column-overlay input[type="checkbox"]');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = true;
+            var colIndex = checkbox.id.replace('checkbox-', '');
+            toggleColumnVisibility('data-table', colIndex, checkbox);
+        });
+    }
+
+    function deselectAllColumns() {
+        var checkboxes = document.querySelectorAll('#column-overlay input[type="checkbox"]');
+        checkboxes.forEach(function(checkbox) {
+            checkbox.checked = false;
+            var colIndex = checkbox.id.replace('checkbox-', '');
+            toggleColumnVisibility('data-table', colIndex, checkbox);
+        });
+    }
+    </script>
+    
+    <script>
+    function toggleEditMode() {
+        var editModeButton = document.getElementById('edit-mode');
+        var promoteLinks = document.querySelectorAll('.promote-link');
+        var inEditMode = editModeButton.getAttribute('data-edit-mode') === 'true';
+
+        promoteLinks.forEach(function(link) {
+            link.style.display = inEditMode ? 'none' : 'inline';
+        });
+
+        editModeButton.setAttribute('data-edit-mode', !inEditMode);
+        editModeButton.style.backgroundColor = !inEditMode ? 'red' : '#007BFF';
+    }
+    </script>
+    
+    <script>
+    var promotedFields = [];
+
+    function promoteField(jsonPath, fieldName) {
+        if (!promotedFields.includes(jsonPath)) {
+            promotedFields.push(jsonPath);
+            updateMainTable();
+        }
+    }
+
+    function updateMainTable() {
+        // Get the main table and its header row
+        var table = document.getElementById('data-table');
+        var headerRow = table.rows[0];
+
+        // Add new columns for promoted fields if they don't already exist
+promotedFields.forEach(function(jsonPath) {
+    var parts = jsonPath.split('.');
+    var column = parts[1];  // Corrected: Get the top-level column name
+    var fieldName = parts.pop();
+    if (!Array.from(headerRow.cells).some(cell => cell.innerText === fieldName)) {
+        var th = document.createElement('th');
+        th.innerText = fieldName;
+        var jsonColumnIndex = Array.from(headerRow.cells).findIndex(cell => cell.innerText === column);
+        headerRow.insertBefore(th, headerRow.cells[jsonColumnIndex + 1]);
+    }
+});
+
+        // Update each row with the specific value from the inner JSON
+        for (var i = 1; i < table.rows.length; i++) {
+            var row = table.rows[i];
+            var rowData = JSON.parse(row.getAttribute('data-row'));  // Ensure data-row contains JSON data
+            console.log('Row Data:', rowData);  // Debugging log
+promotedFields.forEach(function(jsonPath) {
+    var parts = jsonPath.split('.');
+    var column = parts[1];  // Corrected: Get the top-level column name
+    var innerPath = parts.slice(2).join('.');  // Get the remaining path for inner JSON
+    console.log('Promoting field:', jsonPath);  // Debugging log
+    console.log('Column:', column);  // Debugging log
+    console.log('Inner Path:', innerPath);  // Debugging log
+    var value = rowData[column];  // Retrieve the JSON block from the specified column
+    console.log('Value:', value);  // Debugging log
+
+    // Parse inner JSON if necessary
+    if (value && typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+        try {
+            value = JSON.parse(value);
+            console.log('JSON Parsed value:', value);
+        } catch (e) {
+            console.log('JSON parse error:', e);
+        }
+    }
+
+    // Use the remaining path to extract the specific value
+    value = getValueFromJsonPath(value, innerPath);
+
+    console.log('Parsed Value:', value);  // Debugging log
+    var td = document.createElement('td');
+    td.innerText = value !== undefined && value !== null ? value : 'undefined';
+    var jsonColumnIndex = Array.from(headerRow.cells).findIndex(cell => cell.innerText === column);
+    row.insertBefore(td, row.cells[jsonColumnIndex + 1]);
+});
+        }
+        promotedFields = [];
+    }
+
+
+function getValueFromJsonPath(obj, path) {
+    console.log('Navigating path:', path);
+    console.log('Starting object:', JSON.stringify(obj, null, 2)); // Pretty print the object
+
+    return path.split('.').reduce((acc, part) => {
+        console.log('Current part:', part);
+        console.log('Current accumulator:', JSON.stringify(acc, null, 2)); // Pretty print the accumulator
+
+        if (acc === null || acc === undefined) {
+            console.log('Accumulator is null or undefined. Path not found.');
+            return undefined;
+        }
+
+        if (Array.isArray(acc)) {
+            part = isNaN(part) ? part : parseInt(part, 10);
+            console.log('Array index:', part);
+        }
+
+        if (typeof acc === 'object' && acc !== null && !(part in acc)) {
+            console.log('Part not found in current accumulator.', part);
+            const jsonObject = JSON.parse(JSON.stringify(acc, null, 2));
+            value = jsonObject[0][part];
+            console.log('test value: ', value);
+            return value;
+
+            return undefined;
+        }
+
+        return acc[part];
+    }, obj);
+}
+    </script>
+    </head><body>
+    <div class='top-menu'>
+        <button onclick='toggleAllNested(true)'>[+] Expand All</button>
+        <button onclick='toggleAllNested(false)'>[-] Collapse All</button>
+        <button onclick='showColumnOverlay()'>Choose Columns</button>
+        <button onclick='showAllColumns()'>Show All</button>
+        <button onclick='toggleJSONPaths()'>Show JSON Paths</button>
+        <button id='edit-mode' data-edit-mode='false' onclick='toggleEditMode()'>Edit Mode</button>
+        <input type='text' id='search-bar' oninput='delayedSearch()' placeholder='Search...'>
+    </div>
+    <table id='data-table' border='1' style='border-collapse:collapse'>
+<tr>
+  <th>#</th>
+  <th data-column-index='1' data-sort-dir='desc' onclick='sortColumn(1)'>name</th>
+  <th data-column-index='2' data-sort-dir='desc' onclick='sortColumn(2)'>age</th>
+  <th data-column-index='3' data-sort-dir='desc' onclick='sortColumn(3)'>created_at</th>
+  <th data-column-index='4' data-sort-dir='desc' onclick='sortColumn(4)'>profile</th>
+  <th data-column-index='5' data-sort-dir='desc' onclick='sortColumn(5)'>tags</th>
+</tr>
+<tr onclick='highlightRow(this)' data-row='{"name":"Edward Fuller","age":56,"created_at":"2025-03-21T05:02:52+0000","profile":"{\"user\": {\"details\": {\"contact\": {\"email\": \"janetwilliams@gmail.com\", \"phone\": \"001-413-164-7525x53419\", \"preferences\": {\"notifications\": true, \"themes\": [\"solarized\"], \"history\": [{\"action\": \"logout\", \"timestamp\": \"2013-03-18T11:18:09\"}, {\"action\": \"purchase\", \"timestamp\": \"1981-08-24T16:10:40\"}, {\"action\": \"logout\", \"timestamp\": \"2006-05-08T02:50:43\"}]}}}}}","tags":"[\"user\", \"admin\", \"tester\"]"}'>
+  <td class='row-number'>1</td>
+  <td data-column-index='1'>Edward Fuller</td>
+  <td data-column-index='2'>56</td>
+  <td data-column-index='3'>2025-03-21 05:02:52.000000</td>
+  <td data-column-index='4'><span class='expand-collapse' id='icon-nested-1-3' onclick='toggleNested("nested-1-3")'>[+]</span> profile {}<div style='display:none' id='nested-1-3'><table id='nested-1-3' class='nested-table'><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody><tr><td class='key' title='Path: $.profile.user'>user<div class='json-path'>$.profile.user</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user", "user")' style='display:none;'>Promote</a></td><td><span class='expand-collapse' id='icon-nested-1-3-user' onclick='toggleNested("nested-1-3-user")'>[+]</span> user {}<div style='display:none' id='nested-1-3-user'><table id='nested-1-3-user' class='nested-table'><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody><tr><td class='key' title='Path: $.profile.user.details'>details<div class='json-path'>$.profile.user.details</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user.details", "details")' style='display:none;'>Promote</a></td><td><span class='expand-collapse' id='icon-nested-1-3-user-details' onclick='toggleNested("nested-1-3-user-details")'>[+]</span> details {}<div style='display:none' id='nested-1-3-user-details'><table id='nested-1-3-user-details' class='nested-table'><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody><tr><td class='key' title='Path: $.profile.user.details.contact'>contact<div class='json-path'>$.profile.user.details.contact</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user.details.contact", "contact")' style='display:none;'>Promote</a></td><td><span class='expand-collapse' id='icon-nested-1-3-user-details-contact' onclick='toggleNested("nested-1-3-user-details-contact")'>[+]</span> contact {}<div style='display:none' id='nested-1-3-user-details-contact'><table id='nested-1-3-user-details-contact' class='nested-table'><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody><tr><td class='key' title='Path: $.profile.user.details.contact.email'>email<div class='json-path'>$.profile.user.details.contact.email</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user.details.contact.email", "email")' style='display:none;'>Promote</a></td><td>janetwilliams@gmail.com</td></tr><tr><td class='key' title='Path: $.profile.user.details.contact.phone'>phone<div class='json-path'>$.profile.user.details.contact.phone</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user.details.contact.phone", "phone")' style='display:none;'>Promote</a></td><td>001-413-164-7525x53419</td></tr><tr><td class='key' title='Path: $.profile.user.details.contact.preferences'>preferences<div class='json-path'>$.profile.user.details.contact.preferences</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user.details.contact.preferences", "preferences")' style='display:none;'>Promote</a></td><td><span class='expand-collapse' id='icon-nested-1-3-user-details-contact-preferences' onclick='toggleNested("nested-1-3-user-details-contact-preferences")'>[+]</span> preferences {}<div style='display:none' id='nested-1-3-user-details-contact-preferences'><table id='nested-1-3-user-details-contact-preferences' class='nested-table'><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody><tr><td class='key' title='Path: $.profile.user.details.contact.preferences.notifications'>notifications<div class='json-path'>$.profile.user.details.contact.preferences.notifications</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user.details.contact.preferences.notifications", "notifications")' style='display:none;'>Promote</a></td><td>true</td></tr><tr><td class='key' title='Path: $.profile.user.details.contact.preferences.themes'>themes<div class='json-path'>$.profile.user.details.contact.preferences.themes</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user.details.contact.preferences.themes", "themes")' style='display:none;'>Promote</a></td><td><span class='expand-collapse' id='icon-nested-1-3-user-details-contact-preferences-themes' onclick='toggleNested("nested-1-3-user-details-contact-preferences-themes")'>[+]</span> themes {}<div style='display:none' id='nested-1-3-user-details-contact-preferences-themes'><table id='nested-1-3-user-details-contact-preferences-themes' class='nested-table'><thead><tr></tr></thead><tbody><tr></tr></tbody></table></div></td></tr><tr><td class='key' title='Path: $.profile.user.details.contact.preferences.history'>history<div class='json-path'>$.profile.user.details.contact.preferences.history</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user.details.contact.preferences.history", "history")' style='display:none;'>Promote</a></td><td><span class='expand-collapse' id='icon-nested-1-3-user-details-contact-preferences-history' onclick='toggleNested("nested-1-3-user-details-contact-preferences-history")'>[+]</span> history {}<div style='display:none' id='nested-1-3-user-details-contact-preferences-history'><table id='nested-1-3-user-details-contact-preferences-history' class='nested-table'><thead><tr><th title='Path: $.profile.user.details.contact.preferences.history.action'>action<div class='json-path'>$.profile.user.details.contact.preferences.history.action</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user.details.contact.preferences.history.action", "action")' style='display:none;'>Promote</a></th><th title='Path: $.profile.user.details.contact.preferences.history.timestamp'>timestamp<div class='json-path'>$.profile.user.details.contact.preferences.history.timestamp</div> <a href='#' class='promote-link' onclick='promoteField("$.profile.user.details.contact.preferences.history.timestamp", "timestamp")' style='display:none;'>Promote</a></th></tr></thead><tbody><tr><td>logout</td><td>2013-03-18T11:18:09</td></tr><tr><td>purchase</td><td>1981-08-24T16:10:40</td></tr><tr><td>logout</td><td>2006-05-08T02:50:43</td></tr></tbody></table></div></td></tr></tbody></table></div></td></tr></tbody></table></div></td></tr></tbody></table></div></td></tr></tbody></table></div></td></tr></tbody></table></div></td>
+  <td data-column-index='5'><span class='expand-collapse' id='icon-nested-1-4' onclick='toggleNested("nested-1-4")'>[+]</span> tags {}<div style='display:none' id='nested-1-4'><table id='nested-1-4' class='nested-table'><thead><tr></tr></thead><tbody><tr></tr><tr></tr><tr></tr></tbody></table></div></td>
+</tr></table><div id='column-overlay' class='overlay' onclick='hideColumnOverlay()'><div class='overlay-content' onclick='event.stopPropagation()'><h3>Choose Columns</h3><button onclick='selectAllColumns()'>Select All</button><button onclick='deselectAllColumns()'>Deselect All</button><div><input type='checkbox' id='checkbox-0' checked onclick='toggleColumnVisibility("data-table", 0, this)'> <label for='checkbox-0'>#</label></div><div><input type='checkbox' id='checkbox-1' checked onclick='toggleColumnVisibility("data-table", 1, this)'> <label for='checkbox-1'>name</label></div><div><input type='checkbox' id='checkbox-2' checked onclick='toggleColumnVisibility("data-table", 2, this)'> <label for='checkbox-2'>age</label></div><div><input type='checkbox' id='checkbox-3' checked onclick='toggleColumnVisibility("data-table", 3, this)'> <label for='checkbox-3'>created_at</label></div><div><input type='checkbox' id='checkbox-4' checked onclick='toggleColumnVisibility("data-table", 4, this)'> <label for='checkbox-4'>profile</label></div><div><input type='checkbox' id='checkbox-5' checked onclick='toggleColumnVisibility("data-table", 5, this)'> <label for='checkbox-5'>tags</label></div><button onclick='hideColumnOverlay()'>Close</button></div></div></body></html>
