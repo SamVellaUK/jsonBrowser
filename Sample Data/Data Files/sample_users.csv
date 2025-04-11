@@ -1,0 +1,3 @@
+name,age,created_at,profile,tags
+Alice,30,2024-05-12 14:30:00,"{""user"": {""details"": {""contact"": {""email"": ""alice@example.com"", ""phone"": ""123-456-7890"", ""preferences"": {""notifications"": true, ""themes"": [""light"", ""dark""], ""history"": [{""action"": ""login"", ""timestamp"": ""2024-05-10T08:00:00Z""}, {""action"": ""purchase"", ""timestamp"": ""2024-05-11T09:15:00Z""}]}}}}}","[""admin"", ""tester"", ""early_access""]"
+Bob,25,2024-06-01 09:00:00,"{""user"": {""details"": {""contact"": {""email"": ""bob@example.com"", ""phone"": ""555-789-1234"", ""preferences"": {""notifications"": false, ""themes"": [""dark""], ""history"": [{""action"": ""signup"", ""timestamp"": ""2024-05-20T12:00:00Z""}]}}}}}","[""user"", ""subscriber""]"
