@@ -1,0 +1,85 @@
+import { renderTable } from './render.js';
+import { setupUIListeners } from './ui.js';
+
+window.DATA = [];
+window.editMode = false;
+
+async function fetchJSON() {
+  try {
+    const response = await fetch('./JSON Output/samplejson.json');
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    window.DATA = await response.json();
+    console.log('Fetched JSON data:', window.DATA); // Debugging
+    renderTable(window.DATA); // Use the imported renderTable function
+  } catch (e) {
+    document.getElementById('json-root').textContent = 'Failed to load JSON';
+    console.error('Failed to fetch JSON:', e);
+  }
+}
+
+// Attach fetchJSON to the global scope
+window.fetchJSON = fetchJSON;
+
+window.addEventListener('DOMContentLoaded', async () => {
+  console.log('DOMContentLoaded event triggered'); // Debugging
+
+  // Ensure separate containers for table and JSON paths
+  const jsonRoot = document.getElementById('json-root');
+  if (!jsonRoot) {
+    console.error('Error: #json-root element not found'); // Debugging
+    return;
+  }
+
+  let tableContainer = document.getElementById('table-container');
+  let pathsContainer = document.getElementById('paths-container');
+
+  // Create containers if they don't already exist
+  if (!tableContainer) {
+    tableContainer = document.createElement('div');
+    tableContainer.id = 'table-container';
+    jsonRoot.appendChild(tableContainer);
+    console.log('Created #table-container'); // Debugging
+  }
+  if (!pathsContainer) {
+    pathsContainer = document.createElement('div');
+    pathsContainer.id = 'paths-container';
+    jsonRoot.appendChild(pathsContainer);
+    console.log('Created #paths-container'); // Debugging
+  }
+
+  await fetchJSON(); // Fetch JSON after containers are created
+  renderTable(window.DATA); // Use the imported renderTable function
+
+  // Ensure setupUIListeners is called after DOM is fully initialized
+  try {
+    setupUIListeners();
+  } catch (e) {
+    console.error('Error in setupUIListeners:', e); // Debugging
+  }
+});
+
+
+
+function displayJsonPaths(json, parentPath = '', parentElement = null) {
+  const pathsContainer = document.getElementById('paths-container');
+  if (!parentElement) parentElement = pathsContainer;
+
+  Object.keys(json).forEach((key) => {
+    const currentPath = parentPath ? `${parentPath}.${key}` : key;
+
+    // Create a container for the current path and element name
+    const pathElement = document.createElement('div');
+    pathElement.className = 'json-path';
+
+    // Display the element name and its path
+    pathElement.innerHTML = `<strong>${key}</strong>: ${currentPath}`;
+
+    // Append the path element to the parent element
+    parentElement.appendChild(pathElement);
+
+    if (typeof json[key] === 'object' && json[key] !== null) {
+      // Recursive call for nested objects
+      displayJsonPaths(json[key], currentPath, pathElement);
+    }
+  });
+}

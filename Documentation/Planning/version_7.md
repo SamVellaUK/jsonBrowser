@@ -37,9 +37,9 @@ Allow users to promote deeply nested JSON fields to top-level columns. This is a
 |------|------------------|--------|-------|
 | 7.3.1 | Clicking `+` extracts full path (e.g., `raw_event.userIdentity.sessionContext.attributes.mfaAuthenticated`) | ✅ Completed | Store this as the source path |
 | 7.3.2 | New column is added after the parent column (e.g., after `raw_event`) | ✅ Completed | Column label should be the last segment (`mfaAuthenticated`) |
-| 7.3.3 | For each row, resolve the path to get the promoted value | ⬜ Planned | Empty if value doesn't exist |
-| 7.3.4 | Column should support text sorting | ⬜ Planned | Use existing sort logic |
-| 7.3.5 | Maintain a list of promoted columns to avoid duplicates | ⬜ Planned | Prevent re-promoting the same path |
+| 7.3.3 | For each row, resolve the path to get the promoted value | ✅ Completed | Empty if value doesn't exist |
+| 7.3.4 | Column should support text sorting | ✅ Completed | Use existing sort logic |
+| 7.3.5 | Maintain a list of promoted columns to avoid duplicates | ✅ Completed | Prevent re-promoting the same path |
 
 ---
 
@@ -47,10 +47,10 @@ Allow users to promote deeply nested JSON fields to top-level columns. This is a
 
 | ID   | Task Description | Status | Notes |
 |------|------------------|--------|-------|
-| 7.4.1 | Rename "Show JSON Paths" button to "JSON Paths" | ⬜ Planned | Match “Edit” styling |
-| 7.4.2 | Change button style: blue (inactive), red (active) | ⬜ Planned | Consistent UI language |
-| 7.4.3 | When active, display JSON paths under column headers for promoted fields | ⬜ Planned | Use short path starting after the top-level key |
-| 7.4.4 | Also show paths under nested keys (as already implemented) | ⬜ Planned | Preserve current nested path view |
+| 7.4.1 | Rename "Show JSON Paths" button to "JSON Paths" | ✅ Completed | Match “Edit” styling |
+| 7.4.2 | Change button style: blue (inactive), red (active) | ✅ Completed | Consistent UI language |
+| 7.4.3 | When active, display JSON paths under column headers for promoted fields | ✅ Completed | Use short path starting after the top-level key |
+| 7.4.4 | Also show paths under nested keys (as already implemented) | ✅ Completed | Preserve current nested path view |
 
 ---
 

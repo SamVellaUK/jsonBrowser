@@ -24,8 +24,11 @@ body {
     table tr:hover {
       background-color: #f1f1f1;
     }
+    table tr.highlighted {
+      background-color: #fff3b0 !important; /* Softer yellow and override hover */
+    }
     .highlighted {
-      background-color: #ffffcc !important;
+      background-color: yellow;
     }
     .nested-table th, .nested-table td {
       background-color: white !important;
@@ -83,6 +86,7 @@ body {
       display: block; /* Display on a new line */
     }
 
+
     .edit-button {
       border: 1px solid #007BFF; /* Blue border */
       color: #007BFF; /* Blue text */
@@ -90,6 +94,7 @@ body {
       padding: 5px 10px;
       cursor: pointer;
     }
+    
 
     .edit-button:hover {
       background-color: #E3F2FD; /* Light blue background on hover */
@@ -110,4 +115,20 @@ body {
 
     .promote-button:hover {
       text-decoration: underline;
+    }
+
+    .json-paths-button {
+      color: #888; /* Medium grey */
+      font-size: 0.9em;
+      margin-top: 2px;
+      
+    }
+    .json-paths-button:hover {
+      background-color: #E3F2FD; /* Light blue background on hover */
+    }
+
+    .json-paths-button.active {
+      background-color: #c62828; /* Red background */
+      color: white; /* White text */
+      border-color: #c62828; /* Red border */
     }

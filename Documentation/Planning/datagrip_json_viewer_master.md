@@ -27,7 +27,7 @@ Each version includes:
 | 4.0     | JS architecture planning + dependency selection | ✅ Complete | [Version 4 Plan](version_4.md) |
 | 5.0     | Render deeply nested JSON structures with collapsible toggles using vanilla JS | ✅ Complete | [Version 5 Plan](version_5.md) |
 | 6.0     | Add global expand/collapse controls and JSON path display toggle | ✅ Complete | [Version 6 Plan](version_6.md) |
-| 7.0     | Promote deeply nested JSON fields to top-level columns (flattening) | 🔜 Planned | [Version 7 Plan](version_7.md) |
+| 7.0     | Promote deeply nested JSON fields to top-level columns (flattening) | ✅ Complete | [Version 7 Plan](version_7.md) |
 
 
 ## 🗃️ Feature Backlog
