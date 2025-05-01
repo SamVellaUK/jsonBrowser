@@ -141,52 +141,45 @@ if (searchPrev) {
 function performSearch(query) {
   clearPreviousSearch();
 
-  if (!query || query.trim().length === 0) {
-    window.searchMatches = [];
-    window.currentSearchIndex = -1;
-    updateSearchCounter();    
-    console.log('Search query is empty. Exiting search.');
+  const matches = [];
+  const lowerQuery = query.trim().toLowerCase();
+
+  if (!lowerQuery) {
+    console.log('🔎 Empty query — nothing to search');
     return;
   }
 
-  const matches = [];
-  const lowerQuery = query.toLowerCase();
-
-  function searchObject(obj, path = '') {
+  function walk(obj, path = '', rowIndex = null) {
     if (obj === null || obj === undefined) return;
 
     if (typeof obj === 'object') {
       if (Array.isArray(obj)) {
-        obj.forEach((item, index) => {
-          searchObject(item, `${path}[${index}]`);
-        });
+        obj.forEach((item, i) => walk(item, `[${i}]`, i));
       } else {
         Object.entries(obj).forEach(([key, value]) => {
           const newPath = path ? `${path}.${key}` : key;
-          searchObject(value, newPath);
+          walk(value, newPath, rowIndex);
         });
       }
     } else {
-      const valueStr = String(obj);
-      if (valueStr.toLowerCase().includes(lowerQuery)) {
-        const matchStart = valueStr.toLowerCase().indexOf(lowerQuery);
-        if (matchStart !== -1) {
-          const matchedText = valueStr.substring(matchStart, matchStart + query.length);
-          matches.push({ path, value: matchedText });
-        }
+      const valStr = String(obj);
+      if (valStr.toLowerCase().includes(lowerQuery)) {
+        matches.push({ path, value: valStr });
       }
     }
   }
 
-  searchObject(window.DATA);
+  walk(window.DATA);
 
   window.searchMatches = matches;
+  window.highlightedPaths = new Set(matches.map(m => m.path));
   window.currentSearchIndex = matches.length > 0 ? 0 : -1;
+  window.activeMatchPath = matches[window.currentSearchIndex]?.path || null;
+
+  console.log(`🔎 Found ${matches.length} matches`);
   updateSearchCounter();
 
-  if (matches.length > 0) {
-    highlightCurrentMatch();
-  }
+  applyActiveColumns(); // Or trigger your table re-render
 }
 
 
@@ -210,127 +203,6 @@ export function clearPreviousSearch() {
   window.searchMatches = [];
   window.currentSearchIndex = -1;
   updateSearchCounter();
-}
-
-
-function highlightCurrentMatch() {
-  const table = document.getElementById('data-table');
-  if (!table) return;
-
-  // Clear old highlights first
-  document.querySelectorAll('.highlight, .highlight-active').forEach(el => {
-    const text = document.createTextNode(el.textContent);
-    el.parentNode.replaceChild(text, el);
-  });
-
-  const walker = document.createTreeWalker(
-    table,
-    NodeFilter.SHOW_TEXT,
-    null,
-    false
-  );
-
-  const textNodes = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    textNodes.push(node);
-  }
-
-  const highlightedSpans = [];
-
-  window.searchMatches.forEach(match => {
-    textNodes.forEach(textNode => {
-      if (!textNode.parentNode) return;
-
-      const value = match.value;
-      const textContent = textNode.nodeValue;
-      const lowerText = textContent.toLowerCase();
-      const lowerValue = value.toLowerCase();
-
-      let startIdx = lowerText.indexOf(lowerValue);
-      if (startIdx >= 0) {
-        const endIdx = startIdx + value.length;
-
-        const before = textContent.slice(0, startIdx);
-        const matchText = textContent.slice(startIdx, endIdx);
-        const after = textContent.slice(endIdx);
-
-        const fragment = document.createDocumentFragment();
-        if (before) fragment.appendChild(document.createTextNode(before));
-
-        const highlightSpan = document.createElement('span');
-        highlightSpan.className = 'highlight';
-        highlightSpan.textContent = matchText;
-        highlightSpan.setAttribute('data-path', match.path);
-        fragment.appendChild(highlightSpan);
-        highlightedSpans.push(highlightSpan);
-
-        if (after) fragment.appendChild(document.createTextNode(after));
-
-        textNode.parentNode.replaceChild(fragment, textNode);
-      }
-    });
-  });
-
-  // Highlight the current result
-  if (window.currentSearchIndex >= 0 && highlightedSpans.length > window.currentSearchIndex) {
-    const activeSpan = highlightedSpans[window.currentSearchIndex];
-    activeSpan.classList.add('highlight-active');
-    activeSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
-}
-
-
-export function applySearchHighlightsToNewContent(root = document.getElementById('data-table')) {
-  if (!window.searchMatches || window.searchMatches.length === 0) return;
-  if (!root) return;
-
-  const walker = document.createTreeWalker(
-    root,
-    NodeFilter.SHOW_TEXT,
-    {
-      acceptNode: (node) => {
-        if (!node.nodeValue.trim()) return NodeFilter.FILTER_SKIP;
-        return NodeFilter.FILTER_ACCEPT;
-      }
-    },
-    false
-  );
-
-  const textNodes = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    textNodes.push(node);
-  }
-
-  textNodes.forEach(textNode => {
-    const text = textNode.nodeValue;
-    const lowerText = text.toLowerCase();
-
-    window.searchMatches.forEach(match => {
-      const lowerValue = match.value.toLowerCase();
-
-      const startIdx = lowerText.indexOf(lowerValue);
-      if (startIdx >= 0) {
-        const before = text.slice(0, startIdx);
-        const matchText = text.slice(startIdx, startIdx + match.value.length);
-        const after = text.slice(startIdx + match.value.length);
-
-        const fragment = document.createDocumentFragment();
-        if (before) fragment.appendChild(document.createTextNode(before));
-
-        const span = document.createElement('span');
-        span.className = 'highlight';
-        span.textContent = matchText;
-        span.setAttribute('data-path', match.path);
-        fragment.appendChild(span);
-
-        if (after) fragment.appendChild(document.createTextNode(after));
-
-        textNode.parentNode.replaceChild(fragment, textNode);
-      }
-    });
-  });
 }
 
 

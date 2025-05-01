@@ -1,6 +1,5 @@
 import { highlightRow } from './ui.js';
 import { sortTableByColumn } from './ui.js';
-import { applySearchHighlightsToNewContent } from './ui.js';
 
 export function renderTable(data) {
   const tableContainer = document.getElementById('table-container');
@@ -17,23 +16,20 @@ export function renderTable(data) {
   }
 
   const MAX_SCAN_ROWS = 50;
-
-  // 🔧 Build the JSON structure from sample rows
   buildJsonStructure(data.slice(0, MAX_SCAN_ROWS));
 
-  // 🔧 Auto-populate columnState with top-level fields (if not already set)
+  // Auto-populate columnState with top-level fields (if not already set)
   const topLevelFields = Object.keys(window.jsonStructure || {});
   window.columnState = {
     visibleColumns: topLevelFields.map(field => ({ path: field, label: field })),
     order: [...topLevelFields],
   };
 
-  // 🔧 Render the active column list immediately
   renderActiveColumnList();
 
-  // Create table element
   const table = document.createElement('table');
   table.id = 'data-table';
+
   const thead = document.createElement('thead');
   const headerRow = document.createElement('tr');
 
@@ -41,52 +37,52 @@ export function renderTable(data) {
   rowNumberHeader.textContent = '#';
   headerRow.appendChild(rowNumberHeader);
 
-  Object.keys(data[0]).forEach((key) => {
+  // Column headers
+  window.columnState.order.forEach((path, index) => {
     const headerCell = document.createElement('th');
-    headerCell.textContent = key;
+    const column = window.columnState.visibleColumns.find(col => col.path === path);
+    headerCell.textContent = column ? column.label : path;
     headerCell.style.cursor = 'pointer';
-    headerCell.dataset.columnIndex = headerRow.children.length - 1;
+    headerCell.dataset.columnIndex = index;
     headerCell.dataset.sortDirection = 'asc';
+
     headerCell.addEventListener('click', function () {
       const currentDir = this.dataset.sortDirection === 'asc' ? 'desc' : 'asc';
       this.dataset.sortDirection = currentDir;
       sortTableByColumn(table, parseInt(this.dataset.columnIndex), currentDir === 'asc');
-      updateRowNumbers();
     });
+
     headerRow.appendChild(headerCell);
   });
+
   thead.appendChild(headerRow);
   table.appendChild(thead);
 
   const tbody = document.createElement('tbody');
+
   data.forEach((item, rowIndex) => {
     const row = document.createElement('tr');
+
     const rowNumberCell = document.createElement('td');
     rowNumberCell.className = 'row-number';
     rowNumberCell.textContent = rowIndex + 1;
     row.appendChild(rowNumberCell);
-    row.addEventListener('click', () => highlightRow(row));
 
-    Object.entries(item).forEach(([key, value]) => {
+    window.columnState.order.forEach((path) => {
       const cell = document.createElement('td');
-      renderCell(cell, value, key);
+      const value = resolvePath(item, path);
+      renderCell(cell, value, path, rowIndex); // ✅ pass rowIndex here
       row.appendChild(cell);
     });
+
+    row.addEventListener('click', () => highlightRow(row));
     tbody.appendChild(row);
   });
+
   table.appendChild(tbody);
   tableContainer.appendChild(table);
-
-  function updateRowNumbers() {
-    const rows = table.querySelectorAll('tbody tr');
-    rows.forEach((row, index) => {
-      const rowNumberCell = row.querySelector('.row-number');
-      if (rowNumberCell) {
-        rowNumberCell.textContent = index + 1;
-      }
-    });
-  }
 }
+
 
 
 export function renderColumnChooser() {
@@ -350,7 +346,9 @@ function moveColumnDown(path) {
 
 
 // In renderCell(container, value, path)
-export function renderCell(container, value, path = '') {
+export function renderCell(container, value, path = '', rowIndex = null) {
+  const fullPath = `[${rowIndex}].${path}`;
+
   if (typeof value === 'object' && value !== null) {
     const toggle = document.createElement('span');
     toggle.textContent = '[+]';
@@ -364,13 +362,21 @@ export function renderCell(container, value, path = '') {
       const isHidden = nestedDiv.style.display === 'none';
       nestedDiv.style.display = isHidden ? 'block' : 'none';
       toggle.textContent = isHidden ? '[-]' : '[+]';
-
+    
       if (isHidden && nestedDiv.childElementCount === 0) {
-        const nestedTable = renderNested(value, path);
+        const relativePath = path.replace(/^\[\d+\]\./, '');
+        const nestedValue = resolvePath(window.DATA[rowIndex], relativePath);
+    
+        if (!nestedValue || typeof nestedValue !== 'object') {
+          console.warn(`⚠️ Cannot expand: invalid nested value at ${relativePath}`);
+          return;
+        }
+    
+        const nestedTable = renderNested(nestedValue, path, rowIndex); // Keep full path for tracking
         nestedDiv.appendChild(nestedTable);
-        applySearchHighlightsToNewContent(nestedDiv);
       }
     };
+    
 
     container.appendChild(toggle);
     container.appendChild(document.createTextNode(Array.isArray(value) ? '[...]' : '{...}'));
@@ -378,14 +384,25 @@ export function renderCell(container, value, path = '') {
   } else {
     const valueSpan = document.createElement('span');
     valueSpan.textContent = value !== undefined ? value : '';
-    valueSpan.setAttribute('data-path', path);  // ✅ Attach path directly to this span
+    valueSpan.setAttribute('data-path', fullPath);
+
+    if (window.highlightedPaths?.has(fullPath)) {
+      valueSpan.classList.add('highlight');
+      if (fullPath === window.activeMatchPath) {
+        valueSpan.classList.add('highlight-active');
+      }
+    }
 
     container.appendChild(valueSpan);
   }
 }
 
+export function renderNested(obj, parentPath = '', rowIndex = null) {
+  if (!obj || typeof obj !== 'object') {
+    console.warn(`⚠️ Invalid nested object at ${parentPath}`);
+    return document.createTextNode('[invalid]');
+  }
 
-export function renderNested(obj, parentPath = '') {
   const table = document.createElement('table');
   table.className = 'nested-table';
   const tbody = document.createElement('tbody');
@@ -393,22 +410,22 @@ export function renderNested(obj, parentPath = '') {
   Object.entries(obj).forEach(([key, val]) => {
     const tr = document.createElement('tr');
     const tdKey = document.createElement('td');
+    const relativePath = parentPath ? `${parentPath}.${key}` : key;
+
     tdKey.textContent = key;
+    tdKey.setAttribute('data-path', relativePath);
 
-    const displayPath = parentPath ? `${parentPath}.${key}` : key;
-
-    // JSON path visual (optional)
-    const jsonPath = document.createElement('div');
-    jsonPath.className = 'json-path';
-    jsonPath.textContent = displayPath.split('.').slice(1).join('.');
-    jsonPath.style.display = window.showJsonPaths ? 'block' : 'none';
-    tdKey.appendChild(jsonPath);
+    if (window.highlightedPaths?.has(relativePath)) {
+      tdKey.classList.add('highlight');
+      if (relativePath === window.activeMatchPath) {
+        tdKey.classList.add('highlight-active');
+      }
+    }
 
     const tdVal = document.createElement('td');
-    tdVal.setAttribute('data-path', displayPath); // ✅ For DOM-based visibility checking
+    tdVal.setAttribute('data-path', relativePath);
 
     if (typeof val === 'object' && val !== null) {
-      // Nested object or array
       const toggle = document.createElement('span');
       toggle.textContent = '[+]';
       toggle.className = 'toggle-nest';
@@ -421,33 +438,35 @@ export function renderNested(obj, parentPath = '') {
         const isHidden = nestedDiv.style.display === 'none';
         nestedDiv.style.display = isHidden ? 'block' : 'none';
         toggle.textContent = isHidden ? '[-]' : '[+]';
-
+      
         if (isHidden && nestedDiv.childElementCount === 0) {
-          const nestedTable = renderNested(val, displayPath);
+          const relativePath = displayPath.replace(/^\[\d+\]\./, '');
+          const nestedVal = resolvePath(window.DATA[rowIndex], relativePath);
+      
+          if (!nestedVal || typeof nestedVal !== 'object') {
+            console.warn(`⚠️ Invalid nested value at ${relativePath}`);
+            return;
+          }
+      
+          const nestedTable = renderNested(nestedVal, displayPath, rowIndex);
           nestedDiv.appendChild(nestedTable);
-
-          nestedDiv.querySelectorAll('.json-path').forEach((pathElement) => {
-            pathElement.style.display = window.showJsonPaths ? 'block' : 'none';
-          });
-
-          applySearchHighlightsToNewContent(nestedDiv);
         }
       };
+      
 
       tdVal.appendChild(toggle);
       tdVal.appendChild(document.createTextNode(Array.isArray(val) ? '[...]' : '{...}'));
       tdVal.appendChild(nestedDiv);
     } else {
-      // Primitive value + promote (+) support
-      renderCell(tdVal, val, displayPath);
-
-      const promoteButton = document.createElement('span');
-      promoteButton.textContent = '+';
-      promoteButton.className = 'promote-button';
-      promoteButton.style.display = window.editMode ? 'inline' : 'none';
-      promoteButton.onclick = () => promoteField(displayPath, key);
-      tdKey.appendChild(promoteButton);
+      renderCell(tdVal, val, relativePath.replace(/^\[\d+\]\./, ''), rowIndex);
     }
+
+    const promoteButton = document.createElement('span');
+    promoteButton.textContent = '+';
+    promoteButton.className = 'promote-button';
+    promoteButton.style.display = window.editMode ? 'inline' : 'none';
+    promoteButton.onclick = () => promoteField(relativePath, key);
+    tdKey.appendChild(promoteButton);
 
     tr.appendChild(tdKey);
     tr.appendChild(tdVal);
@@ -457,7 +476,6 @@ export function renderNested(obj, parentPath = '') {
   table.appendChild(tbody);
   return table;
 }
-
 
 
 export function resolvePath(obj, path) {
