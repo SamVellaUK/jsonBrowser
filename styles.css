@@ -258,3 +258,9 @@ body {
       color: #88a; /* soft grey-blue */
       text-align: left;
     }
+
+    pre span.string { color: green; }
+    pre span.number { color: darkorange; }
+    pre span.boolean { color: blue; }
+    pre span.null { color: magenta; }
+    pre span.key { color: red; }
