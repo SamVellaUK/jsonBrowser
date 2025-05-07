@@ -10,7 +10,8 @@ export const state = {
   search: {
     matches: [],
     index: -1,
-    domMatches: [] 
+    domMatches: [],
+    query: ''
   }
 };
 

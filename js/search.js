@@ -1,22 +1,29 @@
 import { state } from './state.js';
 import { expandToPath } from './renderer.js';
+import { debug, DebugLevel } from './debug.js';   // adjust path
 
 export function performSearch(query) {
   clearHighlights();
   state.search.matches = [];
   state.search.domMatches = [];
   state.search.index = -1;
+  state.search.query = '';
+
+  const localLevel = 0;
 
   if (!query || !query.trim()) return;
 
   const lower = query.toLowerCase();
+  state.search.query = lower;
 
-  // Step 1: Deep search JSON
+  // Step 1: Deep‑search JSON and collect results immutably
+  const allMatches = [];
   state.data.forEach((row, rowIndex) => {
-    deepSearch(row, rowIndex, '', query, lower);
+    allMatches.push(...deepSearch(row, rowIndex, lower));   // NEW
   });
+  state.search.matches = allMatches;
 
-  console.log('[Search] Total matches in JSON:', state.search.matches.length);
+  debug(localLevel, '[Search] Total matches in JSON:', state.search.matches.length);
 
   // Step 2: Build map of all matches by data path
   const matchPathMap = new Map(); // path -> array of matches
@@ -25,64 +32,84 @@ export function performSearch(query) {
     matchPathMap.get(m.path).push(m);
   });
 
-  // Step 3: Highlight DOM where data-path exists AND text matches
+  // ── Step 3: walk the current DOM and inject <span class="highlight"> ─
   const candidates = document.querySelectorAll('[data-path]');
+
   candidates.forEach(el => {
     const path = el.getAttribute('data-path');
     if (!path || !matchPathMap.has(path)) return;
 
     const text = el.textContent;
-    if (!text || !text.toLowerCase().includes(lower)) return;
+    if (!text) return;
 
-    const logicalMatches = matchPathMap.get(path);
-    const hasValidMatch = logicalMatches.some(m =>
-      text.toLowerCase().includes(m.value.toLowerCase())
+    // Find the row index from parent elements
+    let rowElement = el;
+    let rowIndex = null;
+    while (rowElement && rowIndex === null) {
+      rowIndex = rowElement.getAttribute('data-row-index');
+      rowElement = rowElement.parentElement;
+    }
+    
+    if (rowIndex === null) {
+      debug(3, '[performSearch] No row index found for element', { path });
+      return; // Skip this element if we can't find its row
+    }
+
+    // Pull only the matches whose value exactly equals this node's text
+    const logicalMatches = matchPathMap.get(path).filter(m => 
+      m.value === text && String(m.rowIndex) === String(rowIndex)
     );
-    if (!hasValidMatch) return;
+    
+    if (logicalMatches.length === 0) return;
 
-    // Highlight all occurrences of the query in this element
-    const original = text;
-    const lowerOriginal = original.toLowerCase();
-    let currentIndex = 0;
+    // Merge and dedupe offset arrays, then sort ASC
+    const positions = [...new Set(
+      logicalMatches.flatMap(m => m.offsets)
+    )].sort((a, b) => a - b);
+
+    if (positions.length === 0) return;
+
+    // Build a fragment with highlighted spans
     const frag = document.createDocumentFragment();
-    const spansToAdd = [];
+    let cursor = 0;
 
-    while (true) {
-      const matchIndex = lowerOriginal.indexOf(lower, currentIndex);
-      if (matchIndex === -1) break;
+    positions.forEach(pos => {
+      // Non‑matching slice before the hit
+      if (cursor < pos) {
+        frag.appendChild(document.createTextNode(text.slice(cursor, pos)));
+      }
 
-      const before = original.slice(currentIndex, matchIndex);
-      const matchText = original.slice(matchIndex, matchIndex + query.length);
-      const afterIndex = matchIndex + query.length;
-
-      if (before) frag.appendChild(document.createTextNode(before));
-
+      // Highlighted hit
       const span = document.createElement('span');
       span.className = 'highlight';
-      span.textContent = matchText;
-      span.dataset.matchPath = path; // Add the match path to the span
+      span.dataset.matchPath = path;  // Add path for lookup
+      
+      // Use the key directly from the match object for consistency
+      const match = logicalMatches[0];
+      span.dataset.matchKey = match.key;
+      
+      // Store rowIndex for debugging/fallback
+      span.dataset.rowIndex = rowIndex;
+      
+      span.textContent = text.substr(pos, query.length);
       frag.appendChild(span);
-      spansToAdd.push(span);
 
-      currentIndex = afterIndex;
+      cursor = pos + query.length;
+    });
+
+    // Trailing text after the last hit
+    if (cursor < text.length) {
+      frag.appendChild(document.createTextNode(text.slice(cursor)));
     }
 
-    if (currentIndex < original.length) {
-      frag.appendChild(document.createTextNode(original.slice(currentIndex)));
-    }
-
-    if (spansToAdd.length > 0) {
-      el.textContent = '';
-      el.appendChild(frag);
-    }
+    // Swap the node's content
+    el.textContent = '';
+    el.appendChild(frag);
   });
 
   // ✅ After all DOM updates, capture final visible highlight spans
-  state.search.domMatches = Array.from(document.querySelectorAll('span.highlight'))
-    .filter(el => el.offsetParent !== null);  // only visible ones
-
-  console.log('[Search] Visible DOM matches:', state.search.domMatches.length);
-
+  refreshDomMatches();
+  
   state.search.index = state.search.domMatches.length > 0 ? 0 : -1;
   updateSearchCounter();
   highlightCurrentMatch();
@@ -91,75 +118,115 @@ export function performSearch(query) {
 export function navigateSearch(direction) {
   const matches = state.search.matches;
   const total = matches.length;
+  const localLevel = 0;             // your panel+console level
 
   if (total === 0) {
-    console.log('[navigateSearch] No matches to navigate');
+    debug(localLevel, '[navigateSearch] No matches to navigate');
     return;
   }
 
-  // Step 1: Update index in global match list
+  /* ── update logical index ───────────────────────────────────── */
+  const oldIndex = state.search.index;
   if (direction === 'next') {
     state.search.index = (state.search.index + 1) % total;
   } else if (direction === 'prev') {
     state.search.index = (state.search.index - 1 + total) % total;
   }
 
-  const match = matches[state.search.index];
-  const { path, rowIndex } = match;
+  const currentMatch = matches[state.search.index];
+  const { path, rowIndex, value, key } = currentMatch;
+  debug(localLevel,
+        `[navigateSearch] logical→${state.search.index}`,
+        { path, rowIndex, key });
 
-  console.log(`[navigateSearch] Moving to index ${state.search.index}: path=${path}, row=${rowIndex}`);
+  /* ── Ensure we're using the exact match key from the match object ──────── */
+  // This is crucial because we want to match precisely what we stored
+  const matchKey = currentMatch.key;
 
-  // Step 2: Check if this match is visible in DOM
-  const visibleSpan = Array.from(document.querySelectorAll('span.highlight'))
-  .find(span =>
-    span.dataset.matchPath === path &&
-    span.closest('tr')?.dataset.rowIndex === String(rowIndex) &&
-    span.offsetParent !== null
+  /* ── is the corresponding span already visible? ────────────── */
+  refreshDomMatches();
+
+  // Try to find the exact match span first
+  let visibleSpan = state.search.domMatches.find(
+    span => span.dataset.matchKey === matchKey
   );
 
+  // If not found with exact key, try the alternate format (for backward compatibility)
+  if (!visibleSpan) {
+    visibleSpan = state.search.domMatches.find(
+      span => span.dataset.matchKey === `${rowIndex}|${path}`
+    );
+  }
+
   if (visibleSpan) {
-    // ✅ Already visible, highlight it
-    console.log('[navigateSearch] Match is visible — highlighting');
-    state.search.domMatches = Array.from(document.querySelectorAll('span.highlight'))
-      .filter(el => el.offsetParent !== null);
+    debug(localLevel, '[navigateSearch] Span is visible — highlight');
     highlightCurrentMatch();
     updateSearchCounter();
-  } else {
-    // ❌ Hidden — expand to reveal it
-    console.log('[navigateSearch] Match is hidden — expanding...');
-    expandToPath(path, rowIndex);
-
-    // After expansion, retry highlight
-    setTimeout(() => {
-      // Refresh all visible highlights
-      state.search.domMatches = Array.from(document.querySelectorAll('span.highlight'))
-        .filter(el => el.offsetParent !== null);
-
-      // Try to find the newly visible one
-      const matchSpan = state.search.domMatches.find(
-        span => span.dataset.matchPath === path
-      );
-
-      if (matchSpan) {
-        console.log('[navigateSearch] Highlighting now-visible match');
-        highlightCurrentMatch();
-      } else {
-        console.warn('[navigateSearch] Could not find visible span even after expansion');
-      }
-
-      updateSearchCounter();
-    }, 100);
+    visibleSpan.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    return;
   }
+
+  /* ── not visible → expand tree, then retry highlight ───────── */
+  debug(localLevel, '[navigateSearch] Span hidden — expanding...');
+  expandToPath(path, rowIndex);
+
+  let attempts = 0;
+  (function retry() {
+    refreshDomMatches();
+    if (highlightCurrentMatch()) return;      // success
+    if (++attempts < 10) {
+      requestAnimationFrame(retry);
+    } else {
+      debug(localLevel, '[navigateSearch] Failed to find span after max attempts');
+      // If we failed to find the match, roll back to previous index
+      if (attempts >= 10 && oldIndex !== -1) {
+        state.search.index = oldIndex;
+        updateSearchCounter();
+      }
+    }
+  })();
 }
 
 function highlightCurrentMatch() {
-  clearActiveHighlight();
+  // clear any previous "current" box
+  document.querySelectorAll('span.highlight-active')
+    .forEach(el => el.classList.remove('highlight-active'));
 
-  const span = state.search.domMatches[state.search.index];
-  if (span) {
-    span.classList.add('highlight-active');
-    span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const currentMatch = state.search.matches[state.search.index];
+  if (!currentMatch) return false;
+
+  refreshDomMatches();   // make sure the visible list is current
+
+  const { key, rowIndex, path } = currentMatch;
+  
+  // Try multiple approaches to find the right highlight span
+  let target;
+  
+  // Method 1: Try matching by the exact key from the match
+  target = state.search.domMatches.find(span => span.dataset.matchKey === key);
+  
+  // Method 2: If that fails, try constructing the key
+  if (!target) {
+    target = state.search.domMatches.find(
+      span => span.dataset.matchKey === `${rowIndex}|${path}`
+    );
   }
+  
+  // Method 3: Last resort - try matching by path alone
+  if (!target) {
+    target = state.search.domMatches.find(
+      span => span.dataset.matchPath === path
+    );
+  }
+
+  if (!target) {
+    debug(3, '[highlightCurrentMatch] No matching span found', { key, rowIndex, path });
+    return false;    // still hidden (expansion hasn't finished yet)
+  }
+
+  target.classList.add('highlight-active');
+  target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  return true;
 }
 
 function clearHighlights() {
@@ -170,10 +237,8 @@ function clearHighlights() {
     parent.replaceChild(text, span);
   });
 
-  // ✅ Add this line:
   state.search.domMatches = [];
-
-  state.search.domMatches = [];
+  state.search.query = '';
   clearActiveHighlight();
 }
 
@@ -183,31 +248,52 @@ function clearActiveHighlight() {
   );
 }
 
-function deepSearch(obj, rowIndex, path, rawQuery, lowerQuery) {
-  if (obj === null || obj === undefined) return;
+function deepSearch(root, rowIndex, lowerQuery) {
+  const matches = [];
+  const stack = [{ node: root, path: [] }];
 
-  if (typeof obj === 'object') {
-    if (Array.isArray(obj)) {
-      obj.forEach((item, i) => {
-        const arrayPath = `${path}[${i}]`;
-        deepSearch(item, rowIndex, arrayPath, rawQuery, lowerQuery);
-      });
-    } else {
-      Object.entries(obj).forEach(([key, value]) => {
-        const nextPath = path ? `${path}.${key}` : key;
-        deepSearch(value, rowIndex, nextPath, rawQuery, lowerQuery);
-      });
+  while (stack.length) {
+    const { node, path } = stack.pop();
+    if (node == null) continue;
+
+    if (typeof node === 'object') {
+      if (Array.isArray(node)) {
+        for (let i = node.length - 1; i >= 0; i--) {
+          stack.push({ node: node[i], path: [...path, i] });
+        }
+      } else {
+        const entries = Object.entries(node);
+        for (let k = entries.length - 1; k >= 0; k--) {
+          const [key, val] = entries[k];
+          stack.push({ node: val, path: [...path, key] });
+        }
+      }
+      continue;
     }
-  } else {
-    const valueStr = String(obj);
-    if (valueStr.toLowerCase().includes(lowerQuery)) {
-      state.search.matches.push({
-        rowIndex,
-        path,
-        value: valueStr,  // Store the actual value containing the match
-      });
+
+    const valueStr = String(node);
+    const lowerValue = valueStr.toLowerCase();
+    if (!lowerValue.includes(lowerQuery)) continue;
+
+    // Collect every start‑offset where the term appears
+    const offsets = [];
+    let idx = lowerValue.indexOf(lowerQuery);
+    while (idx !== -1) {
+      offsets.push(idx);
+      idx = lowerValue.indexOf(lowerQuery, idx + lowerQuery.length);
     }
+
+    if (offsets.length === 0) continue; // should never fire but be safe
+
+    const pathStr = path.reduce(
+      (acc, seg) => (typeof seg === 'number' ? `${acc}[${seg}]` : acc ? `${acc}.${seg}` : seg),
+      ''
+    );
+
+    const key = `${rowIndex}|${pathStr}`;     // unique across rows
+    matches.push({ rowIndex, path: pathStr, value: valueStr, key, offsets });
   }
+  return matches;
 }
 
 function updateSearchCounter() {
@@ -230,12 +316,11 @@ function updateSearchCounter() {
 
 export function applySearchHighlightsToNewContent(root = document.getElementById('data-table')) {
   if (!state.search?.matches?.length || !root) return;
-
-  // Get search query from the first match
-  const query = state.search.matches[0]?.value || '';
-  if (!query) return;
   
-  const lowerQuery = query.toLowerCase();
+  const lowerQuery = state.search.query;
+  if (!lowerQuery) return;
+
+  debug(3, '[applySearchHighlightsToNewContent] Adding highlights to new content');
 
   const walker = document.createTreeWalker(
     root,
@@ -250,6 +335,8 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
   while ((node = walker.nextNode())) {
     textNodes.push(node);
   }
+
+  let highlightsAdded = 0;
 
   textNodes.forEach(textNode => {
     const text = textNode.nodeValue;
@@ -267,6 +354,25 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
       
       if (!path) return; // No path found, skip highlighting
       
+      // Find the closest parent with data-row-index attribute
+      let rowEl = textNode.parentNode;
+      let rowIndex = null;
+      while (rowEl && rowIndex === null) {
+        rowIndex = rowEl.getAttribute('data-row-index');
+        if (rowIndex === null) rowEl = rowEl.parentNode;
+      }
+      
+      if (rowIndex === null) return; // No row index found, skip highlighting
+      
+      // Look for a matching logical result in our search matches
+      const matchingLogical = state.search.matches.find(m => 
+        m.path === path && 
+        String(m.rowIndex) === String(rowIndex) &&
+        m.value === text
+      );
+      
+      const matchKey = matchingLogical ? matchingLogical.key : `${rowIndex}|${path}`;
+      
       const before = text.slice(0, index);
       const matchText = text.slice(index, index + lowerQuery.length);
       const after = text.slice(index + lowerQuery.length);
@@ -275,6 +381,8 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
       span.className = 'highlight';
       span.textContent = matchText;
       span.dataset.matchPath = path;
+      span.dataset.rowIndex = rowIndex;
+      span.dataset.matchKey = matchKey;
 
       const frag = document.createDocumentFragment();
       if (before) frag.appendChild(document.createTextNode(before));
@@ -282,13 +390,25 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
       if (after) frag.appendChild(document.createTextNode(after));
 
       textNode.parentNode.replaceChild(frag, textNode);
-      
-      // Refresh the DOM matches after adding new highlights
-      setTimeout(() => {
-        state.search.domMatches = Array.from(document.querySelectorAll('span.highlight'))
-          .filter(el => el.offsetParent !== null);
-        updateSearchCounter();
-      }, 0);
+      highlightsAdded++;
     }
   });
+  
+  // Refresh the DOM matches after adding new highlights
+  if (highlightsAdded > 0) {
+    debug(3, `[applySearchHighlightsToNewContent] Added ${highlightsAdded} highlights`);
+    
+    setTimeout(() => {
+      refreshDomMatches();
+      updateSearchCounter();
+      // Try to highlight the current match after adding new ones
+      highlightCurrentMatch();
+    }, 0);
+  }
+}
+
+function refreshDomMatches() {
+  state.search.domMatches = Array.from(
+    document.querySelectorAll('span.highlight')
+  ).filter(el => el.offsetParent !== null);
 }
