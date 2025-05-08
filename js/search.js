@@ -1,6 +1,5 @@
 import { state } from './state.js';
 import { expandToPath } from './renderer.js';
-import { debug, DebugLevel } from './debug.js';   // adjust path
 
 export function performSearch(query) {
   clearHighlights();
@@ -23,7 +22,7 @@ export function performSearch(query) {
   });
   state.search.matches = allMatches;
 
-  debug(localLevel, '[Search] Total matches in JSON:', state.search.matches.length);
+  console.log('[Search] Total matches in JSON:', state.search.matches.length);
 
   // Step 2: Build map of all matches by data path
   const matchPathMap = new Map(); // path -> array of matches
@@ -51,7 +50,7 @@ export function performSearch(query) {
     }
     
     if (rowIndex === null) {
-      debug(3, '[performSearch] No row index found for element', { path });
+      console.log('[performSearch] No row index found for element', { path });
       return; // Skip this element if we can't find its row
     }
 
@@ -121,7 +120,7 @@ export function navigateSearch(direction) {
   const localLevel = 0;             // your panel+console level
 
   if (total === 0) {
-    debug(localLevel, '[navigateSearch] No matches to navigate');
+    console.log('[navigateSearch] No matches to navigate');
     return;
   }
 
@@ -135,7 +134,7 @@ export function navigateSearch(direction) {
 
   const currentMatch = matches[state.search.index];
   const { path, rowIndex, value, key } = currentMatch;
-  debug(localLevel,
+  console.log(
         `[navigateSearch] logical→${state.search.index}`,
         { path, rowIndex, key });
 
@@ -159,7 +158,7 @@ export function navigateSearch(direction) {
   }
 
   if (visibleSpan) {
-    debug(localLevel, '[navigateSearch] Span is visible — highlight');
+    console.log('[navigateSearch] Span is visible — highlight');
     highlightCurrentMatch();
     updateSearchCounter();
     visibleSpan.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -167,7 +166,7 @@ export function navigateSearch(direction) {
   }
 
   /* ── not visible → expand tree, then retry highlight ───────── */
-  debug(localLevel, '[navigateSearch] Span hidden — expanding...');
+  console.log('[navigateSearch] Span hidden — expanding...');
   expandToPath(path, rowIndex);
 
   let attempts = 0;
@@ -177,7 +176,7 @@ export function navigateSearch(direction) {
     if (++attempts < 10) {
       requestAnimationFrame(retry);
     } else {
-      debug(localLevel, '[navigateSearch] Failed to find span after max attempts');
+      console.log('[navigateSearch] Failed to find span after max attempts');
       // If we failed to find the match, roll back to previous index
       if (attempts >= 10 && oldIndex !== -1) {
         state.search.index = oldIndex;
@@ -187,7 +186,7 @@ export function navigateSearch(direction) {
   })();
 }
 
-function highlightCurrentMatch() {
+export function highlightCurrentMatch() {
   // clear any previous "current" box
   document.querySelectorAll('span.highlight-active')
     .forEach(el => el.classList.remove('highlight-active'));
@@ -220,7 +219,7 @@ function highlightCurrentMatch() {
   }
 
   if (!target) {
-    debug(3, '[highlightCurrentMatch] No matching span found', { key, rowIndex, path });
+    console.log('[highlightCurrentMatch] No matching span found', { key, rowIndex, path });
     return false;    // still hidden (expansion hasn't finished yet)
   }
 
@@ -296,7 +295,7 @@ function deepSearch(root, rowIndex, lowerQuery) {
   return matches;
 }
 
-function updateSearchCounter() {
+export function updateSearchCounter() {
   const counter = document.getElementById('search-counter');
   if (!counter) return;
 
@@ -320,7 +319,7 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
   const lowerQuery = state.search.query;
   if (!lowerQuery) return;
 
-  debug(3, '[applySearchHighlightsToNewContent] Adding highlights to new content');
+  console.log('[applySearchHighlightsToNewContent] Adding highlights to new content');
 
   const walker = document.createTreeWalker(
     root,
@@ -396,7 +395,7 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
   
   // Refresh the DOM matches after adding new highlights
   if (highlightsAdded > 0) {
-    debug(3, `[applySearchHighlightsToNewContent] Added ${highlightsAdded} highlights`);
+    console.log(`[applySearchHighlightsToNewContent] Added ${highlightsAdded} highlights`);
     
     setTimeout(() => {
       refreshDomMatches();
@@ -407,7 +406,7 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
   }
 }
 
-function refreshDomMatches() {
+export function refreshDomMatches() {
   state.search.domMatches = Array.from(
     document.querySelectorAll('span.highlight')
   ).filter(el => el.offsetParent !== null);

@@ -181,6 +181,15 @@ function renderArrayRows(tbody, arr, parentPath, rowIndex) {
     const keyCell = DomUtils.createCell(index, {
       dataset: { key: String(index) }
     });
+
+    /* ── NEW: relative‑path display minus the first segment ───── */
+    const relPath      = `${parentPath}[${index}]`;
+    const displayPath  = stripFirstSegment(relPath);
+    if (displayPath) {
+      keyCell.appendChild(
+        DomUtils.createElement('div', { className: 'json-path' }, { textContent: displayPath })
+      );
+    }
     
     // Value cell
     const fullPath = `${parentPath}[${index}]`;
@@ -216,6 +225,16 @@ function renderObjectRows(tbody, obj, parentPath, rowIndex) {
       dataset: { key }
     });
     
+    
+    /* ── NEW: relative‑path display minus the first segment ───── */
+    const relPath      = parentPath ? `${parentPath}.${key}` : key;
+    const displayPath  = stripFirstSegment(relPath);
+    if (displayPath) {
+      keyCell.appendChild(
+        DomUtils.createElement('div', { className: 'json-path' }, { textContent: displayPath })
+      );
+    }
+    
     // Value cell
     const fullPath = parentPath ? `${parentPath}.${key}` : key;
     const valueCell = DomUtils.createCell(null, {
@@ -232,4 +251,31 @@ function renderObjectRows(tbody, obj, parentPath, rowIndex) {
     tr.appendChild(valueCell);
     tbody.appendChild(tr);
   });
+}
+
+/* ────────────────────────────────────────────────────────────── */
+/* Remove the first path element (or root‑level [index])         */
+/* "raw_event.userIdentity.userName" → "userIdentity.userName"   */
+/* "rootArray[2].id"               → "id" (drops rootArray[2])   */
+function stripFirstSegment(path) {
+  if (!path) return '';
+
+  // Find first dot or bracket whichever comes first
+  const dot      = path.indexOf('.');
+  const bracket  = path.indexOf('[');
+
+  // Case 1: path starts with '['  -> drop up to the matching ']' plus any following dot
+  if (bracket === 0) {
+    const closing = path.indexOf(']');
+    if (closing !== -1) {
+      const next = path.slice(closing + 1);          // slice after ]
+      return next.startsWith('.') ? next.slice(1) : next;
+    }
+  }
+
+  // Case 2: starts with key.  Drop up to first dot
+  if (dot !== -1) return path.slice(dot + 1);
+
+  // Only one segment -> nothing to show
+  return '';
 }
