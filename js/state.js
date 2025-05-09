@@ -1,8 +1,12 @@
+// state.js
 export const state = {
   data: [],
   jsonStructure: {},
   editMode: false,
   showJsonPaths: false,
+  ui: {
+    scrollTop: 0
+  },
   columnState: {
     visibleColumns: [],
     order: [],

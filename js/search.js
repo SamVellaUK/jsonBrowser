@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { expandToPath } from './renderer.js';
+import { splitJsonPath, parseArrayPath  } from './PathUtils.js';
 
 export function performSearch(query) {
   clearHighlights();
@@ -117,7 +118,6 @@ export function performSearch(query) {
 export function navigateSearch(direction) {
   const matches = state.search.matches;
   const total = matches.length;
-  const localLevel = 0;             // your panel+console level
 
   if (total === 0) {
     console.log('[navigateSearch] No matches to navigate');
@@ -133,29 +133,15 @@ export function navigateSearch(direction) {
   }
 
   const currentMatch = matches[state.search.index];
-  const { path, rowIndex, value, key } = currentMatch;
-  console.log(
-        `[navigateSearch] logical→${state.search.index}`,
-        { path, rowIndex, key });
-
-  /* ── Ensure we're using the exact match key from the match object ──────── */
-  // This is crucial because we want to match precisely what we stored
-  const matchKey = currentMatch.key;
+  const { path, rowIndex, key } = currentMatch;
 
   /* ── is the corresponding span already visible? ────────────── */
   refreshDomMatches();
 
   // Try to find the exact match span first
   let visibleSpan = state.search.domMatches.find(
-    span => span.dataset.matchKey === matchKey
+    span => span.dataset.matchKey === key
   );
-
-  // If not found with exact key, try the alternate format (for backward compatibility)
-  if (!visibleSpan) {
-    visibleSpan = state.search.domMatches.find(
-      span => span.dataset.matchKey === `${rowIndex}|${path}`
-    );
-  }
 
   if (visibleSpan) {
     console.log('[navigateSearch] Span is visible — highlight');
@@ -167,23 +153,24 @@ export function navigateSearch(direction) {
 
   /* ── not visible → expand tree, then retry highlight ───────── */
   console.log('[navigateSearch] Span hidden — expanding...');
-  expandToPath(path, rowIndex);
-
-  let attempts = 0;
-  (function retry() {
-    refreshDomMatches();
-    if (highlightCurrentMatch()) return;      // success
-    if (++attempts < 10) {
-      requestAnimationFrame(retry);
-    } else {
-      console.log('[navigateSearch] Failed to find span after max attempts');
-      // If we failed to find the match, roll back to previous index
-      if (attempts >= 10 && oldIndex !== -1) {
-        state.search.index = oldIndex;
-        updateSearchCounter();
+  
+  // New: Split path and expand each segment sequentially
+  const pathParts = splitJsonPath(path);
+  if (pathParts.length > 0) {
+    expandPathSequentially(pathParts, rowIndex, () => {
+      refreshDomMatches();
+      if (highlightCurrentMatch()) {
+        console.log('[navigateSearch] Successfully expanded and highlighted match');
+      } else {
+        console.log('[navigateSearch] Failed to highlight after expansion');
+        // Roll back to previous index if we couldn't find the match
+        if (oldIndex !== -1) {
+          state.search.index = oldIndex;
+          updateSearchCounter();
+        }
       }
-    }
-  })();
+    });
+  }
 }
 
 export function highlightCurrentMatch() {
@@ -284,10 +271,10 @@ function deepSearch(root, rowIndex, lowerQuery) {
 
     if (offsets.length === 0) continue; // should never fire but be safe
 
-    const pathStr = path.reduce(
-      (acc, seg) => (typeof seg === 'number' ? `${acc}[${seg}]` : acc ? `${acc}.${seg}` : seg),
-      ''
-    );
+    const pathStr = path.reduce((acc, seg) => 
+      typeof seg === 'number' ? `${acc}[${seg}]` : 
+      acc ? `${acc}.${seg}` : seg, 
+    '');
 
     const key = `${rowIndex}|${pathStr}`;     // unique across rows
     matches.push({ rowIndex, path: pathStr, value: valueStr, key, offsets });
@@ -410,4 +397,156 @@ export function refreshDomMatches() {
   state.search.domMatches = Array.from(
     document.querySelectorAll('span.highlight')
   ).filter(el => el.offsetParent !== null);
+}
+
+function expandPathSequentially(pathParts, rowIndex, callback, currentDepth = 0) {
+  console.log(`Expanding path: ${pathParts.join('.')} at depth ${currentDepth}`);
+  if (currentDepth >= pathParts.length) {
+      callback();
+      return;
+  }
+
+  const currentPath = pathParts.slice(0, currentDepth + 1).join('.').replace('.[', '['); // Handle array syntax;
+
+  console.log(`Attempting to expand: ${currentPath}`);
+
+  const cell = findCellForPath(currentPath, rowIndex);
+  if (!cell) {
+      console.warn(`Cell not found for: ${currentPath}`);
+      callback();
+      return;
+  }
+
+  const toggle = cell.querySelector('.toggle-nest');
+  const nestedContent = cell.querySelector('.nested-content');
+
+  if (toggle && nestedContent) {
+      const isExpanded = nestedContent.style.display === 'block';
+      
+      if (!isExpanded) {
+          console.log(`Expanding: ${currentPath}`);
+          toggle.click();
+          
+          // Wait for content to load
+          const checkLoaded = () => {
+              if (nestedContent.childElementCount > 0 || nestedContent.style.display === 'block') {
+                  expandPathSequentially(pathParts, rowIndex, callback, currentDepth + 1);
+              } else {
+                  setTimeout(checkLoaded, 50);
+              }
+          };
+          setTimeout(checkLoaded, 50);
+          return;
+      }
+  }
+
+  // Proceed to next segment
+  expandPathSequentially(pathParts, rowIndex, callback, currentDepth + 1);
+}
+
+// Helper function to expand parent arrays
+function expandParentArray(parentPath, arrayIndex, rowIndex, callback) {
+  console.log(`Expanding parent array: ${parentPath}[${arrayIndex}]`);
+  
+  const parentCell = findCellForPath(parentPath, rowIndex);
+  if (!parentCell) {
+    console.warn(`Parent cell not found for: ${parentPath}`);
+    callback();
+    return;
+  }
+
+  const parentToggle = parentCell.querySelector('.toggle-nest');
+  const parentNested = parentCell.querySelector('.nested-content');
+
+  if (parentToggle && parentNested) {
+    const isParentExpanded = parentNested.style.display === 'block';
+    
+    if (!isParentExpanded) {
+      parentToggle.click();
+      
+      // Wait for parent to expand and content to render
+      const checkParentLoaded = () => {
+        if (parentNested.childElementCount > 0) {
+          // Now find and expand the specific array item
+          const arrayItemCell = findArrayItemCell(parentNested, arrayIndex);
+          if (arrayItemCell) {
+            const itemToggle = arrayItemCell.querySelector('.toggle-nest');
+            const itemNested = arrayItemCell.querySelector('.nested-content');
+            
+            if (itemToggle && itemNested && itemNested.style.display !== 'block') {
+              itemToggle.click();
+              
+              // Wait for item to expand
+              setTimeout(() => {
+                if (itemNested.style.display === 'block') {
+                  callback();
+                }
+              }, 50);
+            } else {
+              callback();
+            }
+          } else {
+            callback();
+          }
+        } else {
+          setTimeout(checkParentLoaded, 50);
+        }
+      };
+      setTimeout(checkParentLoaded, 50);
+      return;
+    }
+  }
+  
+  // Parent already expanded, proceed directly to callback
+  callback();
+}
+
+// Helper to find specific array item cell
+function findArrayItemCell(parentNested, index) {
+  const nestedTable = parentNested.querySelector('.nested-table');
+  if (!nestedTable) return null;
+  
+  const rows = nestedTable.querySelectorAll('tr');
+  if (rows.length > index) {
+    return rows[index].querySelector('td:nth-child(2)');
+  }
+  return null;
+}
+
+// New helper function to find a cell by path and row index
+function findCellForPath(path, rowIndex) {
+  // First try exact match in main table
+  let cell = document.querySelector(
+      `#data-table tr[data-row-index="${rowIndex}"] td[data-column-path="${path}"]`
+  );
+  
+  // If not found, try in nested tables with proper array syntax
+  if (!cell) {
+      // Convert path to selector-friendly format
+      const selectorPath = path.replace(/\[(\d+)\]/g, '\\[$1\\]');
+      cell = document.querySelector(
+          `[data-row-index="${rowIndex}"] [data-path="${selectorPath}"], 
+           [data-row-index="${rowIndex}"] [data-column-path="${selectorPath}"]`
+      );
+  }
+  
+  // Special handling for array items
+  if (!cell && path.includes('[')) {
+      const arrayMatch = path.match(/^(.*)\[(\d+)\]$/);
+      if (arrayMatch) {
+          const [_, basePath, index] = arrayMatch;
+          const parentCell = findCellForPath(basePath, rowIndex);
+          if (parentCell) {
+              const nestedTable = parentCell.querySelector('.nested-content .nested-table');
+              if (nestedTable) {
+                  const rows = nestedTable.querySelectorAll('tr');
+                  if (rows[index]) {
+                      cell = rows[index].querySelector('td:nth-child(2)');
+                  }
+              }
+          }
+      }
+  }
+  
+  return cell;
 }

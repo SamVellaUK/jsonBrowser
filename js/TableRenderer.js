@@ -76,9 +76,10 @@ export function renderTable() {
  * @param {number|null} rowIndex - Row index
  */
 export function renderCellContent(container, value, path = '', rowIndex = null) {
-  // Add data attributes
   container.setAttribute('data-path', path);
+  container.setAttribute('data-column-path', path);
   if (rowIndex !== null) {
+    container.setAttribute('data-row-idx', rowIndex);
     container.setAttribute('data-row-index', rowIndex);
   }
   
@@ -89,27 +90,13 @@ export function renderCellContent(container, value, path = '', rowIndex = null) 
   }
 }
 
-/**
- * Renders an object or array value in a cell
- * @param {HTMLElement} container - Cell container
- * @param {Object|Array} value - Value to render
- * @param {string} path - Data path
- * @param {number|null} rowIndex - Row index
- */
+// Update renderObjectCell to include data-toggle
 function renderObjectCell(container, value, path, rowIndex) {
   const nestedContent = DomUtils.createNestedContainer(path, rowIndex);
+  nestedContent.setAttribute('data-toggle', 'expand');
   
-  const toggle = DomUtils.createToggle(() => {
-    const isExpanded = nestedContent.style.display === 'none';
-    DomUtils.setToggleState(toggle, nestedContent, isExpanded);
-
-    if (isExpanded && nestedContent.childElementCount === 0) {
-      console.log(`Expanding path: ${path}`);
-      const nested = renderNestedTable(value, path, rowIndex);
-      nestedContent.appendChild(nested);
-      applySearchHighlightsToNewContent(nestedContent);
-    }
-  });
+  const toggle = DomUtils.createToggle();
+  toggle.setAttribute('data-toggle', 'collapse');
   
   container.appendChild(toggle);
   container.appendChild(document.createTextNode(
@@ -173,18 +160,27 @@ export function renderNestedTable(obj, parentPath = '', rowIndex = null) {
  * @param {string} parentPath - Parent path
  * @param {number|null} rowIndex - Row index
  */
+// TableRenderer.js - Update renderArrayRows
 function renderArrayRows(tbody, arr, parentPath, rowIndex) {
   arr.forEach((item, index) => {
-    const tr = DomUtils.createElement('tr');
+    const tr = DomUtils.createElement('tr', {
+      dataset: { 
+        rowIndex,
+        arrayIndex: index
+      }
+    });
     
     // Index cell
     const keyCell = DomUtils.createCell(index, {
-      dataset: { key: String(index) }
+      dataset: { 
+        key: String(index),
+        path: `${parentPath}[${index}]`
+      }
     });
 
-    /* ── NEW: relative‑path display minus the first segment ───── */
-    const relPath      = `${parentPath}[${index}]`;
-    const displayPath  = stripFirstSegment(relPath);
+    /* ── relative‑path display minus the first segment ───── */
+    const relPath = `${parentPath}[${index}]`;
+    const displayPath = stripFirstSegment(relPath);
     if (displayPath) {
       keyCell.appendChild(
         DomUtils.createElement('div', { className: 'json-path' }, { textContent: displayPath })
@@ -197,7 +193,8 @@ function renderArrayRows(tbody, arr, parentPath, rowIndex) {
       dataset: {
         path: fullPath,
         key: String(index),
-        rowIndex: rowIndex !== null ? rowIndex : undefined
+        rowIndex: rowIndex !== null ? rowIndex : undefined,
+        arrayIndex: index
       }
     });
     

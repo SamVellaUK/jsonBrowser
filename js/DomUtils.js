@@ -131,3 +131,23 @@ export function createElement(tag, attrs = {}, props = {}) {
     nestedContent.style.display = expanded ? 'block' : 'none';
     toggle.textContent = expanded ? '[-]' : '[+]';
   }
+
+  export function captureElementState(element) {
+    return {
+      scrollTop: element.scrollTop,
+      // Add other relevant state
+    };
+  }
+  
+  export function restoreElementState(element, state) {
+    if (state.scrollTop) {
+      element.scrollTop = state.scrollTop;
+    }
+    // Restore other state
+  }
+  
+  export function moveElement(source, target) {
+    // Implement efficient DOM node movement
+    target.parentNode.insertBefore(source, target);
+    target.parentNode.removeChild(target);
+  }

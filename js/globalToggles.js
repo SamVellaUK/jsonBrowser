@@ -78,12 +78,7 @@ export function toggleAllNested(expand = true) {
 }
 
 /* ────────────────────────────────────────────────────────── */
-export function applyJsonPathVisibility() {
-  const container = document.getElementById('table-container');
-  if (container) {
-    container.classList.toggle('show-paths', state.showJsonPaths);
-  }
-}
+
 export function toggleJsonPaths() {
   state.showJsonPaths = !state.showJsonPaths;  // flip flag
   applyJsonPathVisibility();                   // add / remove class
