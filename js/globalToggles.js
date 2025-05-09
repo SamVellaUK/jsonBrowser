@@ -87,3 +87,9 @@ export function toggleJsonPaths() {
   document.getElementById('show-json-paths')
         ?.classList.toggle('active', state.showJsonPaths);
 }
+function applyJsonPathVisibility() {
+  const container = document.getElementById('table-container');
+  if (!container) return;
+  container.classList.toggle('show-paths', state.showJsonPaths);
+}
+

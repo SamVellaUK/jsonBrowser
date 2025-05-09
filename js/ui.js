@@ -9,7 +9,7 @@ export function initializeUI() {
   console.log('[UI] initializeUI triggered');
   
   // Set up delegated event listeners
-  document.getElementById('data-table')?.addEventListener('click', handleTableClick);
+  document.getElementById('table-container')?.addEventListener('click', handleTableClick);
   
   // Keep top-level control listeners (these aren't table cells)
   document.getElementById('search-button')?.addEventListener('click', () => {

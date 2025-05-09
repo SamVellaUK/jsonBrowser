@@ -4,19 +4,17 @@ export const state = {
   jsonStructure: {},
   editMode: false,
   showJsonPaths: false,
-  ui: {
-    scrollTop: 0
-  },
+  ui: { scrollTop: 0 },
   columnState: {
     visibleColumns: [],
     order: [],
   },
-  search: {
-    matches: [],
-    index: -1,
-    domMatches: [],
-    query: ''
-  }
+  // ← add this block
+  sortState: {
+    path: null,        // which column we’re sorted on
+    direction: 'asc'   // or 'desc'
+  },
+  search: { matches: [], index: -1, domMatches: [], query: '' }
 };
 
 window.state = state;

@@ -11,63 +11,103 @@ import * as DomUtils from './DomUtils.js';
  * Renders the main data table
  */
 export function renderTable() {
-  const container = document.getElementById('table-container') || DomUtils.createTableContainer();
+  // 1) get & clear container
+  const container =
+    document.getElementById('table-container') ||
+    DomUtils.createTableContainer();
   container.innerHTML = '';
 
+  // 2) build table element
   const table = DomUtils.createElement('table', { id: 'data-table' });
-  
-  // Create header
+
+  // —— HEADER ——  
   const thead = DomUtils.createElement('thead');
   const headRow = DomUtils.createElement('tr');
-  
-  // Add row number column
+
+  // 2.1) Identity column (“#”), no sorting
   headRow.appendChild(DomUtils.createHeaderCell('#'));
 
-  // Add data columns
-  state.columnState.order.forEach((path, i) => {
-    const col = state.columnState.visibleColumns.find(c => c.path === path);
-    const th = DomUtils.createHeaderCell(col?.label || path, { 
-      dataset: { columnIndex: i }
+  // 2.2) Data columns with click-to-sort
+  state.columnState.order.forEach((path, colIndex) => {
+    const colDef = state.columnState.visibleColumns.find(c => c.path === path);
+    const label = colDef?.label || path;
+    const th = DomUtils.createHeaderCell(label, {
+      dataset: { columnIndex: colIndex }
     });
+
+    // indicate current sort
+    if (state.sortState.path === path) {
+      th.classList.add(
+        state.sortState.direction === 'asc' ? 'sorted-asc' : 'sorted-desc'
+      );
+    }
+
+    // click handler: toggle or set new sort
+    th.addEventListener('click', () => {
+      if (state.sortState.path === path) {
+        state.sortState.direction =
+          state.sortState.direction === 'asc' ? 'desc' : 'asc';
+      } else {
+        state.sortState.path = path;
+        state.sortState.direction = 'asc';
+      }
+
+      // sort data in place
+      state.data.sort((a, b) => {
+        const va = resolvePath(a, path);
+        const vb = resolvePath(b, path);
+        return compareValues(va, vb, state.sortState.direction);
+      });
+
+      // re-render and re-apply highlights
+      renderTable();
+      applySearchHighlightsToNewContent();
+    });
+
     headRow.appendChild(th);
   });
 
   thead.appendChild(headRow);
   table.appendChild(thead);
 
-  // Create table body
+  // —— BODY ——  
   const tbody = DomUtils.createElement('tbody');
 
-  // Add data rows
   state.data.forEach((rowData, rowIndex) => {
-    const row = DomUtils.createElement('tr', { 
-      dataset: { rowIndex }
-    });
-    
-    // Add row number
-    row.appendChild(DomUtils.createCell(rowIndex + 1));
+    const tr = DomUtils.createElement('tr', { dataset: { rowIndex } });
 
-    // Add data cells
+    // 3.1) row number cell
+    tr.appendChild(DomUtils.createCell(rowIndex + 1));
+
+    // 3.2) data cells
     state.columnState.order.forEach(path => {
-      const cell = DomUtils.createCell(null, { 
-        dataset: { 
-          columnPath: path,
-          rowIndex
-        }
+      const td = DomUtils.createCell(null, {
+        dataset: { columnPath: path, rowIndex }
       });
-      
       const value = resolvePath(rowData, path);
-      renderCellContent(cell, value, path, rowIndex);
-      row.appendChild(cell);
+      renderCellContent(td, value, path, rowIndex);
+      tr.appendChild(td);
     });
 
-    tbody.appendChild(row);
+    tbody.appendChild(tr);
   });
 
   table.appendChild(tbody);
   container.appendChild(table);
 }
-
+// Helper to compare two values (numbers or strings)
+function compareValues(a, b, dir) {
+  if (a == null) return 1;
+  if (b == null) return -1;
+  if (typeof a === 'number' && typeof b === 'number') {
+    return dir === 'asc' ? a - b : b - a;
+  }
+  const sa = String(a).toLowerCase();
+  const sb = String(b).toLowerCase();
+  if (sa < sb) return dir === 'asc' ? -1 : 1;
+  if (sa > sb) return dir === 'asc' ? 1 : -1;
+  return 0;
+}
 /**
  * Renders content inside a table cell
  * @param {HTMLElement} container - Cell container
