@@ -205,7 +205,8 @@ function mergeRow(structNode, data) {
 /**
  * Given state.jsonStructure, render it into #available-fields
  */
-function renderColumnChooser() {
+export function renderColumnChooser() {
+  // ── 1) Rebuild the JSON-tree on the left
   state.jsonStructure = computeJsonStructure(state.data.slice(0, 5));
   const avail = document.getElementById('available-fields');
   let tree = avail.querySelector('.field-tree');
@@ -215,10 +216,36 @@ function renderColumnChooser() {
     avail.appendChild(tree);
   }
   tree.innerHTML = '';
-
-  // Pass `''` as the parentPath for top-level fields
   Object.entries(state.jsonStructure).forEach(([key, node]) => {
     tree.appendChild(createTreeNode(key, node, 0, ''));
+  });
+
+  // ── 2) Populate the “Active Columns” box on the right
+  const active = document.getElementById('active-columns');
+  active.innerHTML = '';  // clear previous
+  updateActiveColumnsBox();
+}
+
+export function updateActiveColumnsBox() {
+
+  
+  const container = document.getElementById('active-columns');
+  if (!container) return;
+  
+  console.log('Updating active columns box');
+  // Clear out any existing entries
+  container.innerHTML = '';
+
+  // For each visible column (in order), append a label/button
+  state.columnState.visibleColumns.forEach(col => {
+    const item = document.createElement('div');
+    item.classList.add('active-column-item');
+    item.textContent = col.label;
+    // Optionally store the path for click-to-remove:
+    item.dataset.path = col.path;
+
+
+    container.appendChild(item);
   });
 }
 
@@ -257,6 +284,7 @@ function createTreeNode(key, node, depth, parentPath = '') {
       // Remove it cleanly (see demoteField implementation below)
       demoteField(fullPath);
     }
+    updateActiveColumnsBox(); 
   });
 
   item.appendChild(checkbox);
