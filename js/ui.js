@@ -2,7 +2,7 @@
 import { state } from './main.js';
 import { performSearch, navigateSearch, applySearchHighlightsToNewContent, refreshDomMatches, updateSearchCounter } from './search.js'; 
 import * as DomUtils from './Utils.js';
-import { renderNestedTable } from './TableRenderer.js';
+import { renderNestedTable, promoteField, demoteField } from './TableRenderer.js';
                 
  
 
@@ -133,7 +133,7 @@ export function toggleAllNested(expand = true) {
         if (parentPath == null || idxAttr == null) return;
 
         const rowIdx = parseInt(idxAttr, 10);
-        const obj    = resolvePath(state.data[rowIdx], parentPath);
+        const obj    = DomUtils.resolvePath(state.data[rowIdx], parentPath);
         if (obj === undefined) return;
 
         const tbl = renderNestedTable(obj, parentPath, rowIdx);
@@ -169,7 +169,7 @@ function applyJsonPathVisibility() {
 }
 
 /**
- * Build a very simple “schema” from up to the first 5 rows.
+ * Build a very simple "schema" from up to the first 5 rows.
  * Each node tracks whether it came from an Array and its children.
  */
 function computeJsonStructure(rows) {
@@ -205,11 +205,8 @@ function mergeRow(structNode, data) {
 /**
  * Given state.jsonStructure, render it into #available-fields
  */
-// replace your old render + createTreeNode with this:
-
 function renderColumnChooser() {
   state.jsonStructure = computeJsonStructure(state.data.slice(0, 5));
-
   const avail = document.getElementById('available-fields');
   let tree = avail.querySelector('.field-tree');
   if (!tree) {
@@ -219,54 +216,81 @@ function renderColumnChooser() {
   }
   tree.innerHTML = '';
 
-  // kick off recursion at depth=0
-  Object.entries(state.jsonStructure).forEach(([key,node]) => {
-    tree.appendChild(createTreeNode(key, node, 0));
+  // Pass `''` as the parentPath for top-level fields
+  Object.entries(state.jsonStructure).forEach(([key, node]) => {
+    tree.appendChild(createTreeNode(key, node, 0, ''));
   });
 }
 
 
 const INDENT_PX = 10;  // pixels per level
 
-function createTreeNode(key, node, depth) {
-  // 1️⃣ The outer container for this single field
+
+function createTreeNode(key, node, depth, parentPath = '') {
+  // 1) Build the “segment” for this key (add [0] if it’s an array)
+  const pathSegment = node._isArray ? `${key}[0]` : key;
+  // 2) Prepend the parentPath if it exists
+  const fullPath = parentPath
+    ? `${parentPath}.${pathSegment}`
+    : pathSegment;
+
+  // 3) Create your container and stash the path
   const item = document.createElement('div');
   item.className = 'field-item';
   item.style.marginLeft = `${depth + INDENT_PX}px`;
+  item.dataset.path = fullPath;
 
-  // 2️⃣ Do we actually have any nested children?
+  // 4) Checkbox: checked if this path is already in your columns
+  const checkbox = document.createElement('input');
+  checkbox.type = 'checkbox';
+  checkbox.checked = state.columnState.order.includes(fullPath);
+  checkbox.style.marginRight = '4px';
+
+  // 5) When the user toggles it, simply refer to your stored path
+  checkbox.addEventListener('change', () => {
+    if (checkbox.checked) {
+      // Only promote if it isn't already in the column order
+      if (!state.columnState.order.includes(fullPath)) {
+        promoteField(fullPath);
+      }
+    } else {
+      // Remove it cleanly (see demoteField implementation below)
+      demoteField(fullPath);
+    }
+  });
+
+  item.appendChild(checkbox);
+
+  // 6) If this node has children, render a “[-]/[+]” and recurse
   const childKeys = Object.keys(node.children);
-  const hasKids  = childKeys.length > 0;
-
-  // 3️⃣ If so, create the “[–]/[+]” toggle
-  if (hasKids) {
+  if (childKeys.length) {
     const toggle = document.createElement('span');
-    toggle.className   = 'toggle-nest';
-    toggle.textContent = '[-]';            // start expanded
+    toggle.className = 'toggle-nest';
+    toggle.textContent = '[-]';
     toggle.style.cursor = 'pointer';
     toggle.style.marginRight = '6px';
-    item.appendChild(toggle);
-
-    // Wire up collapse/expand
     toggle.addEventListener('click', () => {
       const nested = item.querySelector(':scope > .nested-content');
       const expanded = nested.style.display !== 'none';
       DomUtils.setToggleState(toggle, nested, !expanded);
     });
+    item.appendChild(toggle);
   }
 
-  // 4️⃣ Always append the field name
+  // 7) The label for the key (with [] if array)
   const label = document.createElement('span');
   label.textContent = node._isArray ? `${key}[]` : key;
   item.appendChild(label);
 
-  // 5️⃣ If there are children, wrap _them_ in a container
-  if (hasKids) {
+  // 8) Recurse for children, passing along `fullPath`
+  if (childKeys.length) {
     const nested = document.createElement('div');
     nested.className = 'nested-content';
-    nested.style.display = 'block';        // default: expanded
-    childKeys.forEach(ck => {
-      nested.appendChild(createTreeNode(ck, node.children[ck], depth + 1));
+    nested.style.display = 'block';   // default expanded
+    childKeys.forEach(childKey => {
+      nested.appendChild(
+        createTreeNode(childKey, node.children[childKey], depth + 1, fullPath)
+      );
     });
     item.appendChild(nested);
   }

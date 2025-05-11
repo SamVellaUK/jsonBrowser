@@ -328,3 +328,36 @@ border-left: solid;
 border-width: 1px;
 border-color: #cccccc;
 }
+/* styles.css */
+
+/* flex row for checkbox + text */
+#column-chooser .field-item-container {
+  display: flex;
+  align-items: center;
+}
+
+/* ensure checkbox sits flush left */
+#column-chooser .field-item-container input[type="checkbox"] {
+  margin: 0 8px 0 0;
+}
+
+/* label should flex/grow if you need it */
+#column-chooser .field-item-container .field-label {
+  flex: 1;
+}
+
+/* your existing toggle style—make sure it still applies */
+#column-chooser .field-tree .toggle-nest {
+  display: inline-block;
+  width: 16px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  color: #007BFF;
+  margin-right: 5px;
+}
+
+/* child container can be hidden/shown by your toggle logic */
+#column-chooser .field-children {
+  margin-left: 0; /* indentation now handled on label */
+}

@@ -62,6 +62,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   const data = await fetchData();
   renderTable();
   initializeUI();
+
+
 });
 // make fetchJSON() available to the inline onclick in your HTML
 window.fetchJSON = async function() {

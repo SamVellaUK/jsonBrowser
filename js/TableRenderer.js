@@ -226,6 +226,43 @@ export function promoteField(fullPath) {
   }
 }
 
+
+export function demoteField(path) {
+  // 1️⃣ Find its position in the state
+  const stateIdx = state.columnState.order.indexOf(path);
+  if (stateIdx === -1) return;
+
+  // 2️⃣ Remove it from the state
+  state.columnState.order.splice(stateIdx, 1);
+  state.columnState.visibleColumns = state.columnState.visibleColumns.filter(
+    c => c.path !== path
+  );
+
+  // 3️⃣ Remove the <th> and matching <td>s by position
+  const table = document.getElementById('data-table');
+  if (!table) return;
+  const headRow = table.querySelector('thead tr');
+  // +1 because the very first column is the row-number column (“#”)
+  const domColIndex = stateIdx + 1;
+
+  // Remove header cell
+  const th = headRow.children[domColIndex];
+  if (th) headRow.removeChild(th);
+
+  // Remove each corresponding TD
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    const td = tr.children[domColIndex];
+    if (td) tr.removeChild(td);
+  });
+
+  // 4️⃣ Re-apply any active search/highlights
+  if (state.search.query) {
+    performSearch(state.search.query);
+  } else {
+    applySearchHighlightsToNewContent(table);
+  }
+}
+
 function renderBodyOnly() {
   const table = document.getElementById('data-table');
   if (!table) return; 
