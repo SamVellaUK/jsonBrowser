@@ -361,3 +361,27 @@ border-color: #cccccc;
 #column-chooser .field-children {
   margin-left: 0; /* indentation now handled on label */
 }
+.active-column-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  margin-left: 6px;
+}
+.move-buttons button {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  margin: 0 8px 0 0;
+  cursor: pointer;
+  font-size: 8pt;
+  color: #FFFFFF;
+  border-color: #007BFF;
+  background-color: #007BFF;
+  border-width: 1px; /* Set a specific border width */
+  outline: none; /* Remove any outline */
+  box-shadow: none; /* Remove any shadow */
+}
+.move-buttons button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}

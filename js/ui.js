@@ -2,7 +2,7 @@
 import { state } from './main.js';
 import { performSearch, navigateSearch, applySearchHighlightsToNewContent, refreshDomMatches, updateSearchCounter } from './search.js'; 
 import * as DomUtils from './Utils.js';
-import { renderNestedTable, promoteField, demoteField } from './TableRenderer.js';
+import { renderTable, renderNestedTable, promoteField, demoteField } from './TableRenderer.js';
                 
  
 
@@ -226,28 +226,66 @@ export function renderColumnChooser() {
   updateActiveColumnsBox();
 }
 
-export function updateActiveColumnsBox() {
+// ui.js
 
-  
+
+export function updateActiveColumnsBox() {
   const container = document.getElementById('active-columns');
   if (!container) return;
-  
+
   console.log('Updating active columns box');
-  // Clear out any existing entries
   container.innerHTML = '';
 
-  // For each visible column (in order), append a label/button
-  state.columnState.visibleColumns.forEach(col => {
+  const { order, visibleColumns } = state.columnState;
+
+  order.forEach((path, idx) => {
+    // find the metadata for this path
+    const colDef = visibleColumns.find(c => c.path === path);
+    const label = colDef?.label || path;
+
     const item = document.createElement('div');
     item.classList.add('active-column-item');
-    item.textContent = col.label;
-    // Optionally store the path for click-to-remove:
-    item.dataset.path = col.path;
+    item.dataset.path = path;
 
 
+
+    // up/down buttons
+    const btns = document.createElement('span');
+    btns.classList.add('move-buttons');
+    btns.style.marginLeft = '8px';
+
+    const up = document.createElement('button');
+    up.textContent = '↑';
+    up.disabled = idx === 0;
+    up.addEventListener('click', () => {
+      if (idx === 0) return;
+      // swap in order array
+      [order[idx - 1], order[idx]] = [order[idx], order[idx - 1]];
+      updateActiveColumnsBox();
+      renderTable();
+    });
+
+    const down = document.createElement('button');
+    down.textContent = '↓';
+    down.disabled = idx === order.length - 1;
+    down.addEventListener('click', () => {
+      if (idx === order.length - 1) return;
+      [order[idx], order[idx + 1]] = [order[idx + 1], order[idx]];
+      updateActiveColumnsBox();
+      renderTable();
+    });
+
+    btns.append(up, down);
+    item.appendChild(btns);
+    // label
+    const span = document.createElement('span');
+    span.textContent = label;
+    item.appendChild(span);
     container.appendChild(item);
   });
 }
+
+
 
 
 const INDENT_PX = 10;  // pixels per level
