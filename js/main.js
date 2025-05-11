@@ -31,7 +31,10 @@ window.state = state;
 export async function fetchData() {
   try {
     const response = await fetch('./JSON Output/samplejson.json');
-    state.data = await response.json();
+    let data = await response.json();
+
+    // Limit to the first 500 rows
+    state.data = data.slice(0, 100);
 
     // Auto-populate columns from first row
     const firstRow = state.data[0];

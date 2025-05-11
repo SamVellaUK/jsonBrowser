@@ -2,6 +2,7 @@
 import { state } from './main.js';
 import { performSearch, navigateSearch, applySearchHighlightsToNewContent, refreshDomMatches, updateSearchCounter } from './search.js'; 
 import * as DomUtils from './Utils.js';
+import { splitJsonPath } from './Utils.js';
 import { renderTable, renderNestedTable, promoteField, demoteField } from './TableRenderer.js';
                 
  
@@ -45,7 +46,48 @@ export function initializeUI() {
       document.getElementById('column-chooser').style.display = 'none';
     });
 
-    
+ // ——— DEBUGGING for SQL modal ———
+ const sqlBtn    = document.getElementById('SQL');
+ const sqlPanel  = document.getElementById('sql-panel');
+ const dialectEl = document.getElementById('sql-dialect');
+ const closeBtn  = document.getElementById('close-sql');
+
+ console.log('⚙️ [init] SQL button:', sqlBtn);
+ console.log('⚙️ [init] SQL panel :', sqlPanel);
+ console.log('⚙️ [init] Dialect sel:', dialectEl);
+ console.log('⚙️ [init] Close button:', closeBtn);
+
+ if (!sqlBtn) {
+   console.error('❌ Could not find #SQL button in DOM!');
+ }
+ if (!sqlPanel) {
+   console.error('❌ Could not find #sql-panel div! Did you insert the modal HTML?');
+ }
+
+ sqlBtn?.addEventListener('click', () => {
+  console.log('👉 SQL click handler');
+  // remove hidden class:
+  sqlPanel.classList.remove('hidden');
+  console.log('style.display (inline):', sqlPanel.style.display);
+  console.log('computed:', getComputedStyle(sqlPanel).display);
+  // generate & inject SQL
+  const dialect = dialectEl?.value || 'postgres';
+  document.getElementById('sql-content').textContent =
+    buildRecreateSql('your_table_name', dialect);
+});
+
+// close
+closeBtn?.addEventListener('click', () => {
+  console.log('👉 Close SQL panel');
+  sqlPanel.classList.add('hidden');
+});
+
+dialectEl?.addEventListener('change', () => {
+  if (!sqlPanel.classList.contains('hidden')) {
+    const sql = buildRecreateSql(currentTableName(), dialectEl.value);
+    document.getElementById('sql-content').textContent = sql;
+  }
+});
 }
 
 // Fix for handling table click with resolvePath function
@@ -285,9 +327,6 @@ export function updateActiveColumnsBox() {
   });
 }
 
-
-
-
 const INDENT_PX = 10;  // pixels per level
 
 
@@ -345,6 +384,7 @@ function createTreeNode(key, node, depth, parentPath = '') {
 
   // 7) The label for the key (with [] if array)
   const label = document.createElement('span');
+  label.style.marginLeft = '6px';
   label.textContent = node._isArray ? `${key}[]` : key;
   item.appendChild(label);
 
@@ -362,4 +402,137 @@ function createTreeNode(key, node, depth, parentPath = '') {
   }
 
   return item;
+}
+
+function currentTableName() {
+  return 'your_table_name';
+}
+
+/**
+ * Builds a Postgres SELECT listing all current columns in order,
+ * extracting nested JSON fields via -> and ->>:
+ */
+
+export function buildRecreateSql(tableName, dialect = 'postgres') {
+  switch (dialect) {
+    case 'snowflake':  return buildSnowflakeSql(tableName);
+    case 'sqlserver':  return buildSqlServerSql(tableName);
+    case 'oracle':     return buildOracleSql(tableName);
+    default:           return buildPostgresSql(tableName);
+  }
+}
+
+/**
+ * Postgres JSON extraction (as before).
+ */
+export function buildPostgresSql(tableName) {
+  
+  const cols = state.columnState.order.map(path => {
+    
+    if (!path.includes('.') && !path.includes('[')) {
+      return `"${path}"`;
+    }
+    const parts = splitJsonPath(path);
+    const root = parts[0], middle = parts.slice(1, -1), last = parts.at(-1);
+    let expr = `"${root}"`;
+    middle.forEach(seg => {
+      if (seg.startsWith('[')) {
+        expr += `->${seg.slice(1,-1)}`;
+      } else {
+        expr += `->'${seg}'`;
+      }
+    });
+    if (last.startsWith('[')) {
+      expr += `->>${last.slice(1,-1)}`;
+    } else {
+      expr += `->>'${last}'`;
+    }
+    const alias = path.replace(/[\.\[\]]+/g, '_');
+    return `${expr} AS "${alias}"`;
+  });
+  return `SELECT\n  ${cols.join(',\n  ')}\nFROM ${tableName};`;
+}
+
+/**
+ * Snowflake JSON extraction using colon + brackets and ::STRING cast.
+ */
+export function buildSnowflakeSql(tableName) {
+  const cols = state.columnState.order.map(path => {
+    if (!path.includes('.') && !path.includes('[')) {
+      return `"${path}"`;
+    }
+    const parts = splitJsonPath(path);
+    const root = parts[0], rest = parts.slice(1);
+    // start with the column reference
+    let expr = `"${root}"`;
+    // every key -> :key, every index -> [idx]
+    rest.forEach((seg, idx) => {
+      if (seg.startsWith('[')) {
+        expr += `[${seg.slice(1,-1)}]`;
+      } else {
+        expr += `:"${seg}"`;
+      }
+    });
+    // final cast to STRING for scalar extraction
+    expr += '::STRING';
+    // alias by flattening
+    const alias = path.replace(/[\.\[\]]+/g, '_');
+    return `${expr} AS "${alias}"`;
+  });
+  return `SELECT\n  ${cols.join(',\n  ')}\nFROM ${tableName};`;
+}
+
+export function buildSqlServerSql(tableName) {
+  const cols = state.columnState.order.map(path => {
+    // top-level
+    if (!/[.\[]/.test(path)) {
+      return `[${path}]`;
+    }
+    // nested JSON path
+    const parts = splitJsonPath(path);
+    const root = parts.shift();
+    // build a JSON path like $.child[0].foo
+    const jsonPath = '$.' + parts.map(seg =>
+      seg.startsWith('[')
+        ? `[${seg.slice(1,-1)}]`
+        : `.${seg}`
+    ).join('');
+    const alias = path.replace(/[\.\[\]]+/g,'_');
+    return `JSON_VALUE([${root}], '${jsonPath}') AS [${alias}]`;
+  });
+
+  return [
+    `SELECT`,
+    `  ${cols.join(',\n  ')}`,
+    `FROM [${tableName}];`
+  ].join('\n');
+}
+
+/**
+ * Oracle JSON extraction using JSON_VALUE():
+ */
+export function buildOracleSql(tableName) {
+  const cols = state.columnState.order.map(path => {
+    // plain top-level
+    if (!/[.\[]/.test(path)) {
+      return `"${path}"`;
+    }
+    // nested JSON
+    const parts = splitJsonPath(path);
+    const root = parts.shift();
+    // build a JSON-path: $.child[0].foo
+    const jsonPath = '$' + parts.map(seg =>
+      seg.startsWith('[')
+        ? seg            // already “[0]”
+        : `.${seg}`
+    ).join('');
+    const alias = path.replace(/[\.\[\]]+/g,'_');
+    return `JSON_VALUE("${root}", '${jsonPath}') AS "${alias}"`;
+  });
+
+  return [
+    `SELECT`,
+    `  ${cols.join(',\n  ')}`,
+    `FROM "${tableName}";`
+  ].join('\n');
 }
