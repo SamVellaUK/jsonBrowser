@@ -1,6 +1,6 @@
 // ui.js
 import { state } from './main.js';
-import * as Search from './search.js';
+import { performSearch, navigateSearch, applySearchHighlightsToNewContent, refreshDomMatches, updateSearchCounter } from './search.js'; 
 import * as DomUtils from './Utils.js';
 import { renderNestedTable } from './TableRenderer.js';
                 
@@ -35,6 +35,7 @@ export function initializeUI() {
   });
 }
 
+// Fix for handling table click with resolvePath function
 function handleTableClick(event) {
   const target = event.target;
   
@@ -52,8 +53,9 @@ function handleTableClick(event) {
         const rowIndex = nested.dataset.rowIndex;
         
         if (path && rowIndex !== undefined) {
-          const objValue = resolvePath(state.data[rowIndex], path);
-          console.log(`objvalue: ${objValue}`);
+          // FIXED: Use the proper DomUtils.resolvePath instead of local function
+          const objValue = DomUtils.resolvePath(state.data[rowIndex], path);
+          console.log(`objvalue:`, objValue);
           if (objValue) {
             
             const nestedTable = renderNestedTable(objValue, path, parseInt(rowIndex, 10));
@@ -71,8 +73,6 @@ function handleTableClick(event) {
     }
     event.stopPropagation();
   }
-
-
 }
 
 

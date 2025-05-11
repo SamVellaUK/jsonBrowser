@@ -1,52 +1,41 @@
 import { state } from './main.js';
-import { applySearchHighlightsToNewContent } from './search.js';
+import { applySearchHighlightsToNewContent, performSearch } from './search.js';
 import * as DomUtils from './Utils.js';
 
 /**
  * TableRenderer.js - Core table rendering functionality
  */
 
-
-/**
- * Renders the main data table
- */
 export function renderTable() {
-  // 1) get & clear container
   const container =
     document.getElementById('table-container') ||
     DomUtils.createTableContainer();
   container.innerHTML = '';
-
-  // apply edit-mode class
   container.classList.toggle('edit-mode', state.editMode);
 
-  // 2) build table element
-  const table = DomUtils.createElement('table', { id: 'root-data-table' });
+  const table = DomUtils.createElement('table', { id: 'data-table' });
 
-  // —— HEADER ——  
   const thead = DomUtils.createElement('thead');
   const headRow = DomUtils.createElement('tr');
-
-  // 2.1) row‐number column
   headRow.appendChild(DomUtils.createHeaderCell('#'));
 
-  // 2.2) data columns
   state.columnState.order.forEach((path, colIndex) => {
     const colDef = state.columnState.visibleColumns.find(c => c.path === path);
     const label = colDef?.label || path;
     const th = DomUtils.createHeaderCell(label, {
-      dataset: { columnIndex: colIndex }
+      dataset: { columnIndex: String(colIndex) } // Store 0-based index from order array
     });
 
-    // indicate current sort
     if (state.sortState.path === path) {
       th.classList.add(
         state.sortState.direction === 'asc' ? 'sorted-asc' : 'sorted-desc'
       );
     }
 
-    // click to sort
     th.addEventListener('click', () => {
+      const oldSortPath = state.sortState.path;
+      const oldSortDirection = state.sortState.direction;
+
       if (state.sortState.path === path) {
         state.sortState.direction =
           state.sortState.direction === 'asc' ? 'desc' : 'asc';
@@ -55,200 +44,237 @@ export function renderTable() {
         state.sortState.direction = 'asc';
       }
 
+      document.querySelectorAll('#data-table > thead > tr > th').forEach(headerCell => {
+        if (headerCell !== th) {
+            headerCell.classList.remove('sorted-asc', 'sorted-desc');
+        }
+      });
+      th.classList.remove('sorted-asc', 'sorted-desc'); // Clear old sort classes first
+      th.classList.add( // Add new sort class
+        state.sortState.direction === 'asc' ? 'sorted-asc' : 'sorted-desc'
+      );
+      
       state.data.sort((a, b) => {
-        const va = resolvePath(a, path);
-        const vb = resolvePath(b, path);
+        const va = DomUtils.resolvePath(a, path);
+        const vb = DomUtils.resolvePath(b, path);
         return compareValues(va, vb, state.sortState.direction);
       });
 
-      renderTable();
-      applySearchHighlightsToNewContent();
+      renderBodyOnly(); 
+      if (state.search.query) {
+        performSearch(state.search.query);
+      }
     });
 
-    // JSON-Paths under header (only for promoted/flattened columns)
     if (state.showJsonPaths && colDef?.sourcePath && colDef.sourcePath !== path) {
       const shortPath = stripFirstSegment(colDef.sourcePath);
-      const p = DomUtils.createElement('div', { className: 'json-path' }, {
-        textContent: shortPath
-      });
-      th.appendChild(p);
+      if (shortPath) {
+        const p = DomUtils.createElement('div', { className: 'json-path' }, {
+          textContent: shortPath
+        });
+        th.appendChild(p);
+      }
     }
-
     headRow.appendChild(th);
   });
 
   thead.appendChild(headRow);
   table.appendChild(thead);
-
-  // —— BODY ——  
+  
   const tbody = DomUtils.createElement('tbody');
-
+  // Initial body render done by renderBodyOnly called after this block if needed,
+  // or directly if data is already present. For renderTable, we'll build it.
   state.data.forEach((rowData, rowIndex) => {
-    const tr = DomUtils.createElement('tr', { dataset: { rowIndex } });
-
-    // row # cell
-    tr.appendChild(DomUtils.createCell(rowIndex + 1));
-
-    // data cells
+    const tr = DomUtils.createElement('tr', { dataset: { rowIndex: String(rowIndex) } });
+    tr.appendChild(DomUtils.createCell(String(rowIndex + 1))); 
     state.columnState.order.forEach(path => {
       const td = DomUtils.createCell(null, {
-        dataset: { columnPath: path, rowIndex }
+        dataset: { columnPath: path, rowIndex: String(rowIndex) }
       });
-      const value = resolvePath(rowData, path);
+      const value = DomUtils.resolvePath(rowData, path);
       renderCellContent(td, value, path, rowIndex);
       tr.appendChild(td);
     });
-
     tbody.appendChild(tr);
   });
-
   table.appendChild(tbody);
+
   container.appendChild(table);
+
+  if (state.search.query) {
+    performSearch(state.search.query);
+  } else {
+    applySearchHighlightsToNewContent(table); 
+  }
 }
 
-// compare helper (unchanged)…
-function compareValues(a, b, dir) { /* … */ }
+function compareValues(a, b, dir) {
+  if (a == null && b == null) return 0;
+  if (a == null) return dir === 'asc' ? -1 : 1;
+  if (b == null) return dir === 'asc' ? 1 : -1;
+  if (typeof a === 'number' && typeof b === 'number') {
+    return dir === 'asc' ? a - b : b - a;
+  }
+  if (typeof a === 'string' && typeof b === 'string') {
+    return dir === 'asc' 
+      ? a.localeCompare(b) 
+      : b.localeCompare(a);
+  }
+  const strA = String(a);
+  const strB = String(b);
+  return dir === 'asc' 
+    ? strA.localeCompare(strB) 
+    : strB.localeCompare(strA);
+}
 
-// render cell content (delegates to object vs scalar)
+function renderObjectCell(container, value, path, rowIndex) {
+  const nestedContent = DomUtils.createNestedContainer(path, rowIndex);
+  const toggle = DomUtils.createToggle(); 
+  
+  container.appendChild(toggle);
+  container.appendChild(
+    document.createTextNode(Array.isArray(value) ? ' [...]' : ' {...}')
+  );
+  container.appendChild(nestedContent);
+}
+
+export function promoteField(fullPath) {
+  if (state.columnState.order.includes(fullPath)) return;
+
+  const rootPathSegment = fullPath.match(/[^.[]+/)?.[0] || '';
+  const rootColIndexInOrder = state.columnState.order.indexOf(rootPathSegment);
+  
+  // Determine the index to insert the new column's path in state.columnState.order
+  // This will be *after* the rootPathSegment column.
+  const insertAtInOrderArray = rootColIndexInOrder >= 0 ? rootColIndexInOrder + 1 : state.columnState.order.length;
+  
+  state.columnState.order.splice(insertAtInOrderArray, 0, fullPath);
+  state.columnState.visibleColumns.push({
+    path: fullPath,
+    label: fullPath.split('.').pop() || fullPath,
+    sourcePath: fullPath,
+  });
+
+  const table = document.getElementById('data-table'); 
+  if (!table) return; 
+  
+  const headRow = table.querySelector(':scope > thead > tr');
+  if (!headRow) return; 
+
+  const columnLabel = fullPath.split('.').pop() || fullPath;
+  const th = DomUtils.createHeaderCell(columnLabel, {
+    // The columnIndex should reflect its new position in state.columnState.order
+    dataset: { columnIndex: String(insertAtInOrderArray) }, 
+  });
+  
+  th.addEventListener('click', () => {
+    // Sort logic for the newly promoted column header
+    if (state.sortState.path === fullPath) {
+      state.sortState.direction = state.sortState.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+      state.sortState.path = fullPath;
+      state.sortState.direction = 'asc';
+    }
+    document.querySelectorAll('#data-table > thead > tr > th').forEach(headerCell => {
+      if (headerCell !== th) headerCell.classList.remove('sorted-asc', 'sorted-desc');
+    });
+    th.classList.remove('sorted-asc', 'sorted-desc');
+    th.classList.add(state.sortState.direction === 'asc' ? 'sorted-asc' : 'sorted-desc');
+    state.data.sort((a, b) => {
+      const va = DomUtils.resolvePath(a, fullPath);
+      const vb = DomUtils.resolvePath(b, fullPath);
+      return compareValues(va, vb, state.sortState.direction);
+    });
+    renderBodyOnly();
+    if (state.search.query) {
+      performSearch(state.search.query);
+    }
+  });
+  
+  if (fullPath.includes('.') || fullPath.includes('[')) { 
+    const shortPath = stripFirstSegment(fullPath);
+    if (shortPath) { 
+        const p = DomUtils.createElement('div', { className: 'json-path' }, { textContent: shortPath });
+        th.appendChild(p);
+    }
+  }
+
+  // Correct DOM insertion index: index in 'order' array + 1 (for the '#' column)
+  const domInsertionNodeIndex = insertAtInOrderArray + 1;
+  const targetThNode = headRow.children[domInsertionNodeIndex];
+  headRow.insertBefore(th, targetThNode); // If targetThNode is null/undefined (at end), it appends.
+
+  const rows = table.querySelectorAll(':scope > tbody > tr');
+  rows.forEach((tr) => { 
+    const rowIndex = parseInt(tr.dataset.rowIndex, 10);
+    if (isNaN(rowIndex)) return; 
+
+    const td = DomUtils.createCell(null, {
+      dataset: { columnPath: fullPath, rowIndex: String(rowIndex) }
+    });
+    const value = DomUtils.resolvePath(state.data[rowIndex], fullPath);
+    renderCellContent(td, value, fullPath, rowIndex);
+    
+    const targetTdNode = tr.children[domInsertionNodeIndex];
+    tr.insertBefore(td, targetTdNode); // If targetTdNode is null/undefined, it appends.
+  });
+
+  if (state.search.query) {
+    performSearch(state.search.query);
+  } else {
+    applySearchHighlightsToNewContent(table);
+  }
+}
+
+function renderBodyOnly() {
+  const table = document.getElementById('data-table');
+  if (!table) return; 
+  
+  const oldTbody = table.querySelector('tbody');
+  const newTbody = DomUtils.createElement('tbody');
+
+  state.data.forEach((rowData, rowIndex) => {
+    const tr = DomUtils.createElement('tr', { dataset: { rowIndex: String(rowIndex) } });
+    tr.appendChild(DomUtils.createCell(String(rowIndex + 1)));
+    state.columnState.order.forEach(path => {
+      const td = DomUtils.createCell(null, {
+        dataset: { columnPath: path, rowIndex: String(rowIndex) }
+      });
+      const value = DomUtils.resolvePath(rowData, path);
+      renderCellContent(td, value, path, rowIndex);
+      tr.appendChild(td);
+    });
+    newTbody.appendChild(tr);
+  });
+
+  if (oldTbody) {
+    table.replaceChild(newTbody, oldTbody);
+  } else {
+    table.appendChild(newTbody);
+  }
+}
+
 export function renderCellContent(container, value, path = '', rowIndex = null) {
+  container.innerHTML = ''; 
   container.setAttribute('data-path', path);
-  container.setAttribute('data-column-path', path);
   if (rowIndex !== null) {
-    container.setAttribute('data-row-idx', rowIndex);
-    container.setAttribute('data-row-index', rowIndex);
+    container.setAttribute('data-row-index', String(rowIndex));
   }
 
   if (typeof value === 'object' && value !== null) {
     renderObjectCell(container, value, path, rowIndex);
   } else {
-    renderScalarCell(container, value, path, rowIndex);
+    renderScalarCell(container, value, path, rowIndex); 
   }
 }
 
-// for objects/arrays:
-function renderObjectCell(container, value, path, rowIndex) {
-  const nestedContent = DomUtils.createNestedContainer(path, rowIndex);
-  nestedContent.setAttribute('data-toggle', 'expand');
-
-  const toggle = DomUtils.createToggle();
-  toggle.setAttribute('data-toggle', 'collapse');
-
-  container.appendChild(toggle);
-  container.appendChild(
-    document.createTextNode(Array.isArray(value) ? '[...]' : '{...}')
-  );
-  container.appendChild(nestedContent);
-}
-
-
-export function promoteField(fullPath) {
-  if (state.columnState.order.includes(fullPath)) return;
-
-  // ① update state
-  const root = fullPath.split('.')[0];
-  const rootIdx = state.columnState.order.indexOf(root);
-  const insertAt = rootIdx >= 0 ? rootIdx + 1 : state.columnState.order.length;
-  state.columnState.order.splice(insertAt, 0, fullPath);
-  state.columnState.visibleColumns.push({
-    path: fullPath,
-    label: fullPath.split('.').pop(),
-    sourcePath: fullPath,
-  });
-
-  // ② grab *only* the root table
-  const table = document.getElementById('root-data-table');
-  // header row: only the direct thead > tr, not nested ones
-  const headRow = table.querySelector(':scope > thead > tr');
-
-  // build the new <th>
-  const label = fullPath.split('.').pop();
-  const th = DomUtils.createHeaderCell(label, {
-    dataset: { columnIndex: insertAt - 1 },
-  });
-  th.addEventListener('click', () => {
-    // your existing sort logic…
-  });
-  if (fullPath.includes('.')) {
-    const shortPath = fullPath.split('.').slice(1).join('.');
-    const p = DomUtils.createElement('div', { className: 'json-path' }, {
-      textContent: shortPath
-    });
-    th.appendChild(p);
-  }
-
-  // insert into thead ( +1 for the “#” column )
-  headRow.insertBefore(th, headRow.children[insertAt + 1]);
-
-  // ③ insert one <td> per *root* row (not nested)
-  const rows = table.querySelectorAll(':scope > tbody > tr');
-  rows.forEach((tr, rowIndex) => {
-    const td = DomUtils.createCell(null, {
-      dataset: { columnPath: fullPath, rowIndex }
-    });
-    const value = resolvePath(state.data[rowIndex], fullPath);
-    // reuse your scalar renderer
-    if (typeof value === 'object' && value !== null) {
-      renderObjectCell(td, value, fullPath, rowIndex);
-    } else {
-      renderScalarCell(td, value, fullPath, rowIndex);
-    }
-    tr.insertBefore(td, tr.children[insertAt + 1]);
-  });
-
-  // ④ keep search highlights intact
-  applySearchHighlightsToNewContent();
-}
-
-/**
- * When sorting, only re-render the body (so you keep headers & expansions)
- */
-function renderBodyOnly() {
-  const table = document.getElementById('data-table');
-  const oldTbody = table.querySelector('tbody');
-  const newTbody = DomUtils.createElement('tbody');
-
-  state.data.forEach((rowData, rowIndex) => {
-    const tr = DomUtils.createElement('tr', { dataset: { rowIndex } });
-    // # cell
-    tr.appendChild(DomUtils.createCell(rowIndex + 1));
-    // all current columns
-    state.columnState.order.forEach(path => {
-      const td = DomUtils.createCell(null, {
-        dataset: { columnPath: path, rowIndex }
-      });
-      const value = resolvePath(rowData, path);
-      if (typeof value === 'object' && value !== null) {
-        renderObjectCell(td, value, path, rowIndex);
-      } else {
-        renderScalarCell(td, value, path, rowIndex);
-      }
-    });
-    newTbody.appendChild(tr);
-  });
-
-  table.replaceChild(newTbody, oldTbody);
-}
-
-
-/**
- * Renders a scalar (non-object) value in a cell
- * @param {HTMLElement} container - Cell container
- * @param {*} value - Value to render
- * @param {string} path - Data path
- */
-function renderScalarCell(container, value, path, rowIndex) {
-  const text = value != null ? value.toString() : '';
+function renderScalarCell(container, value, path, rowIndex) { 
+  const text = value != null ? String(value) : ''; 
   container.appendChild(document.createTextNode(text));
 
-  // ← show "+" only on scalar, nested fields in edit mode
-  if (path.includes('.')) {
+  if (path.includes('.') || path.includes('[')) { 
     const promote = DomUtils.createElement(
-      'span',
-      {
-        className: 'promote-button',
-        title: 'Promote this field as a top-level column'
-      },
-      { textContent: '+' }
+      'span', { className: 'promote-button', title: 'Promote this field as a top-level column' }, { textContent: '+' }
     );
     promote.addEventListener('click', e => {
       e.stopPropagation();
@@ -258,158 +284,79 @@ function renderScalarCell(container, value, path, rowIndex) {
   }
 }
 
-/**
- * Renders a nested table for an object or array
- * @param {Object|Array} obj - The object or array to render
- * @param {string} parentPath - Parent path
- * @param {number|null} rowIndex - Row index
- * @returns {HTMLElement} The nested table
- */
 export function renderNestedTable(obj, parentPath = '', rowIndex = null) {
-  console.log(`Rendering nested table for path: ${parentPath}, row: ${rowIndex}`);
-
-  const tableAttrs = {
-    className: 'nested-table',
-    dataset: { parentPath }
-  };
-  
-  if (rowIndex !== null) {
-    tableAttrs.dataset.rowIndex = rowIndex;
-  }
-  
+  const tableAttrs = { className: 'nested-table', dataset: { parentPath: parentPath } };
+  if (rowIndex !== null) { tableAttrs.dataset.mainRowIndex = String(rowIndex); }
   const table = DomUtils.createElement('table', tableAttrs);
   const tbody = DomUtils.createElement('tbody');
-
   if (Array.isArray(obj)) {
     renderArrayRows(tbody, obj, parentPath, rowIndex);
   } else {
     renderObjectRows(tbody, obj, parentPath, rowIndex);
   }
-
   table.appendChild(tbody);
   return table;
 }
 
-/**
- * Renders table rows for an array
- * @param {HTMLElement} tbody - Table body element
- * @param {Array} arr - Array to render
- * @param {string} parentPath - Parent path
- * @param {number|null} rowIndex - Row index
- */
-// TableRenderer.js - Update renderArrayRows
 function renderArrayRows(tbody, arr, parentPath, rowIndex) {
   arr.forEach((item, index) => {
-    const tr = DomUtils.createElement('tr', {
-      dataset: { 
-        rowIndex,
-        arrayIndex: index
-      }
-    });
-    
-    // Index cell
-    const keyCell = DomUtils.createCell(index, {
-      dataset: { 
-        key: String(index),
-        path: `${parentPath}[${index}]`
-      }
-    });
-
-    /* ── relative‑path display minus the first segment ───── */
-    const relPath = `${parentPath}[${index}]`;
-    const displayPath = stripFirstSegment(relPath);
+    const itemPath = `${parentPath}[${index}]`;
+    const tr = DomUtils.createElement('tr', { dataset: { arrayIndex: String(index) } });
+    const keyCell = DomUtils.createCell(String(index), { dataset: { key: String(index) } });
+    const displayPath = stripFirstSegment(itemPath);
     if (displayPath) {
-      keyCell.appendChild(
-        DomUtils.createElement('div', { className: 'json-path' }, { textContent: displayPath })
-      );
+      keyCell.appendChild( DomUtils.createElement('div', { className: 'json-path' }, { textContent: displayPath }) );
     }
-    
-    // Value cell
-    const fullPath = `${parentPath}[${index}]`;
-    const valueCell = DomUtils.createCell(null, {
-      dataset: {
-        path: fullPath,
-        key: String(index),
-        rowIndex: rowIndex !== null ? rowIndex : undefined,
-        arrayIndex: index
-      }
-    });
-    
-    renderCellContent(valueCell, item, fullPath, rowIndex);
-    
+    const valueCell = DomUtils.createCell(null, { dataset: { path: itemPath } });
+    renderCellContent(valueCell, item, itemPath, rowIndex); 
     tr.appendChild(keyCell);
     tr.appendChild(valueCell);
     tbody.appendChild(tr);
   });
 }
 
-/**
- * Renders table rows for an object
- * @param {HTMLElement} tbody - Table body element
- * @param {Object} obj - Object to render
- * @param {string} parentPath - Parent path
- * @param {number|null} rowIndex - Row index
- */
 function renderObjectRows(tbody, obj, parentPath, rowIndex) {
   Object.entries(obj).forEach(([key, val]) => {
+    const itemPath = parentPath ? `${parentPath}.${key}` : key;
     const tr = DomUtils.createElement('tr');
-    
-    // Key cell
-    const keyCell = DomUtils.createCell(key, {
-      dataset: { key }
-    });
-    
-    
-    /* ── NEW: relative‑path display minus the first segment ───── */
-    const relPath      = parentPath ? `${parentPath}.${key}` : key;
-    const displayPath  = stripFirstSegment(relPath);
+    const keyCell = DomUtils.createCell(key, { dataset: { key: key } });
+    const displayPath  = stripFirstSegment(itemPath);
     if (displayPath) {
-      keyCell.appendChild(
-        DomUtils.createElement('div', { className: 'json-path' }, { textContent: displayPath })
-      );
+      keyCell.appendChild( DomUtils.createElement('div', { className: 'json-path' }, { textContent: displayPath }) );
     }
-    
-    // Value cell
-    const fullPath = parentPath ? `${parentPath}.${key}` : key;
-    const valueCell = DomUtils.createCell(null, {
-      dataset: {
-        path: fullPath,
-        key,
-        rowIndex: rowIndex !== null ? rowIndex : undefined
-      }
-    });
-    
-    renderCellContent(valueCell, val, fullPath, rowIndex);
-    
+    const valueCell = DomUtils.createCell(null, { dataset: { path: itemPath, key: key } });
+    renderCellContent(valueCell, val, itemPath, rowIndex); 
     tr.appendChild(keyCell);
     tr.appendChild(valueCell);
     tbody.appendChild(tr);
   });
 }
 
-/* ────────────────────────────────────────────────────────────── */
-/* Remove the first path element (or root‑level [index])         */
-/* "raw_event.userIdentity.userName" → "userIdentity.userName"   */
-/* "rootArray[2].id"               → "id" (drops rootArray[2])   */
 function stripFirstSegment(path) {
   if (!path) return '';
+  const dot = path.indexOf('.');
+  const bracket = path.indexOf('[');
 
-  // Find first dot or bracket whichever comes first
-  const dot      = path.indexOf('.');
-  const bracket  = path.indexOf('[');
-
-  // Case 1: path starts with '['  -> drop up to the matching ']' plus any following dot
-  if (bracket === 0) {
-    const closing = path.indexOf(']');
-    if (closing !== -1) {
-      const next = path.slice(closing + 1);          // slice after ]
-      return next.startsWith('.') ? next.slice(1) : next;
-    }
+  if (bracket === 0) { // Starts with an array index, e.g., "[0].fieldName" or "[0]"
+    const closingBracket = path.indexOf(']');
+    if (closingBracket === -1) return ''; // Malformed
+    const afterBracket = path.slice(closingBracket + 1);
+    return afterBracket.startsWith('.') ? afterBracket.slice(1) : afterBracket;
   }
 
-  // Case 2: starts with key.  Drop up to first dot
-  if (dot !== -1) return path.slice(dot + 1);
+  // Starts with a key, e.g., "rootKey.field" or "rootKey[0]"
+  let firstSeparatorIndex = -1;
+  if (dot !== -1 && bracket !== -1) {
+    firstSeparatorIndex = Math.min(dot, bracket);
+  } else if (dot !== -1) {
+    firstSeparatorIndex = dot;
+  } else if (bracket !== -1) {
+    firstSeparatorIndex = bracket;
+  }
 
-  // Only one segment -> nothing to show
-  return '';
+  if (firstSeparatorIndex !== -1) {
+    // If separator is '.', slice after it. If '[', include it.
+    return path.charAt(firstSeparatorIndex) === '.' ? path.slice(firstSeparatorIndex + 1) : path.slice(firstSeparatorIndex);
+  }
+  return ''; // Only one segment, so no "child" path part to show
 }
