@@ -1,7 +1,63 @@
 import { initializeUI } from './ui.js';
-import { fetchData } from './state.js';
-import { renderTable } from './renderer.js';
-import { toggleAllNested, toggleJsonPaths } from './globalToggles.js';
+import { renderTable } from './TableRenderer.js';
+import { toggleAllNested, toggleJsonPaths } from './ui.js';
+
+import { expandToPath } from './PathExpander.js';
+import { resolvePath }   from './Utils.js';
+window.expandToPath = expandToPath;
+window.resolvePath  = resolvePath;
+
+// state.js
+export const state = {
+  data: [],
+  jsonStructure: {},
+  editMode: false,
+  showJsonPaths: false,
+  ui: { scrollTop: 0 },
+  columnState: {
+    // now each column has { path, label, sourcePath }
+    visibleColumns: [],
+    order: [],
+  },
+  sortState: {
+    path: null,
+    direction: 'asc'
+  },
+  search: { matches: [], index: -1, domMatches: [], query: '' }
+};
+
+window.state = state;
+
+export async function fetchData() {
+  try {
+    const response = await fetch('./JSON Output/samplejson.json');
+    state.data = await response.json();
+
+    // Auto-populate columns from first row
+    const firstRow = state.data[0];
+    if (firstRow) {
+      const keys = Object.keys(firstRow);
+      state.columnState.visibleColumns = keys.map(k => ({
+        path: k,
+        label: k,
+        sourcePath: k
+      }));
+      state.columnState.order = [...keys];
+    }
+
+    return state.data;
+  } catch (e) {
+    document.getElementById('json-root').textContent = 'Failed to load JSON';
+    console.error('Failed to fetch JSON:', e);
+    return [];
+  }
+}
+
+
+// Initialize the UI when the DOM is fully loaded
+fetchData();
+
+
 window.addEventListener('DOMContentLoaded', async () => {
   const data = await fetchData();
   renderTable();

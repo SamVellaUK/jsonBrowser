@@ -1,8 +1,7 @@
-import { state } from './state.js';
+import { state } from './main.js';
 import { renderNestedTable } from './TableRenderer.js';
-import { splitJsonPath, resolvePath, parseArrayPath } from './PathUtils.js';
 import { applySearchHighlightsToNewContent } from './search.js';
-import * as DomUtils from './DomUtils.js';
+import * as DomUtils from './Utils.js';
 
 /**
  * PathExpander.js - Handles expanding nested paths in the table

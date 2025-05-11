@@ -1,6 +1,5 @@
-import { state } from './state.js';
-import { expandToPath } from './renderer.js';
-import { splitJsonPath, parseArrayPath  } from './PathUtils.js';
+import { state } from './main.js';
+import { splitJsonPath, parseArrayPath  } from './Utils.js';
 
 export function performSearch(query) {
   clearHighlights();
