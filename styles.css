@@ -206,11 +206,7 @@ body {
     #close-column-chooser:hover {
       background-color: #0056b3;
     }
-    #column-chooser .field-tree div {
-      display: flex;
-      align-items: center;
-      margin-left: 10px;
-    }
+
     
     #column-chooser .field-tree .toggle {
       display: inline-block;
@@ -278,4 +274,57 @@ th.sorted-desc::after { content: ' ▼'; font-size:0.8em; }
 /* ...but show them when we're in editMode */
 #table-container.edit-mode .promote-button {
   display: inline;
+}
+
+/* ── Override the flex layout so each node is on its own line ── */
+#column-chooser .field-tree div {
+  /* undo the flex on tree nodes */
+  display: block;
+}
+
+/* ensure each item itself is block-level and spaced */
+#column-chooser .field-tree .field-item {
+  display: block;
+  margin: 4px 0;
+}
+
+/* indent nested children */
+#column-chooser .field-tree .child-container {
+  display: block;
+  margin-left: 20px; /* or whatever indent feels right */
+}
+
+/* ── styles.css ── */
+
+/* 1) Give the overlay a fixed (or minimum) height */
+#column-chooser {
+  width: 800px;
+  height: 500px;       /* enforce a static height */
+  /* or, if you want it to grow but never shrink: */
+  /* min-height: 500px; */
+  overflow: hidden;    /* prevent any internal collapse from pulling it in */
+}
+
+/* 2) Keep the tree scrollable inside */
+#column-chooser .field-tree {
+  /* you might need to bump this up to fill more of the 500px: */
+  max-height: 400px;   /* e.g. 500px minus header/footer space */
+  overflow-y: auto;
+}
+/* 1) Make the tree a fixed-height scrollbox */
+#column-chooser .field-tree {
+  height: 420px !important;   /* lock height (instead of max-height) */
+  overflow-y: scroll;
+}
+
+/* 2) Do the same for the right-hand “Active Columns” area */
+#column-chooser #active-columns {
+  height: 420px !important;              /* same height as the tree */
+  overflow-y:scroll;
+}
+
+#column-chooser .field-item {
+border-left: solid;
+border-width: 1px;
+border-color: #cccccc;
 }

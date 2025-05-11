@@ -33,6 +33,19 @@ export function initializeUI() {
     // 3️⃣ re-apply any active search highlights
     applySearchHighlightsToNewContent();
   });
+
+    // 1️⃣ Open the overlay and render the JSON‐model tree
+    document.getElementById('column-chooser-button')?.addEventListener('click', () => {
+      renderColumnChooser();
+      document.getElementById('column-chooser').style.display = 'block';
+    });
+  
+    // 2️⃣ Close the overlay
+    document.getElementById('close-column-chooser')?.addEventListener('click', () => {
+      document.getElementById('column-chooser').style.display = 'none';
+    });
+
+    
 }
 
 // Fix for handling table click with resolvePath function
@@ -73,6 +86,8 @@ function handleTableClick(event) {
     }
     event.stopPropagation();
   }
+
+  
 }
 
 
@@ -153,3 +168,108 @@ function applyJsonPathVisibility() {
   container.classList.toggle('show-paths', state.showJsonPaths);
 }
 
+/**
+ * Build a very simple “schema” from up to the first 5 rows.
+ * Each node tracks whether it came from an Array and its children.
+ */
+function computeJsonStructure(rows) {
+  const root = {};
+  rows.forEach(row => mergeRow(root, row));
+  return root;
+}
+
+function mergeRow(structNode, data) {
+  if (data && typeof data === 'object') {
+    if (Array.isArray(data)) {
+      if (data.length) mergeRow(structNode, data[0]);
+    } else {
+      for (const [key, val] of Object.entries(data)) {
+        if (!structNode[key]) {
+          structNode[key] = { _isArray: false, children: {} };
+        }
+        if (val && typeof val === 'object') {
+          if (Array.isArray(val)) {
+            structNode[key]._isArray = true;
+            if (val.length && typeof val[0] === 'object') {
+              mergeRow(structNode[key].children, val[0]);
+            }
+          } else {
+            mergeRow(structNode[key].children, val);
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Given state.jsonStructure, render it into #available-fields
+ */
+// replace your old render + createTreeNode with this:
+
+function renderColumnChooser() {
+  state.jsonStructure = computeJsonStructure(state.data.slice(0, 5));
+
+  const avail = document.getElementById('available-fields');
+  let tree = avail.querySelector('.field-tree');
+  if (!tree) {
+    tree = document.createElement('div');
+    tree.className = 'field-tree';
+    avail.appendChild(tree);
+  }
+  tree.innerHTML = '';
+
+  // kick off recursion at depth=0
+  Object.entries(state.jsonStructure).forEach(([key,node]) => {
+    tree.appendChild(createTreeNode(key, node, 0));
+  });
+}
+
+
+const INDENT_PX = 10;  // pixels per level
+
+function createTreeNode(key, node, depth) {
+  // 1️⃣ The outer container for this single field
+  const item = document.createElement('div');
+  item.className = 'field-item';
+  item.style.marginLeft = `${depth + INDENT_PX}px`;
+
+  // 2️⃣ Do we actually have any nested children?
+  const childKeys = Object.keys(node.children);
+  const hasKids  = childKeys.length > 0;
+
+  // 3️⃣ If so, create the “[–]/[+]” toggle
+  if (hasKids) {
+    const toggle = document.createElement('span');
+    toggle.className   = 'toggle-nest';
+    toggle.textContent = '[-]';            // start expanded
+    toggle.style.cursor = 'pointer';
+    toggle.style.marginRight = '6px';
+    item.appendChild(toggle);
+
+    // Wire up collapse/expand
+    toggle.addEventListener('click', () => {
+      const nested = item.querySelector(':scope > .nested-content');
+      const expanded = nested.style.display !== 'none';
+      DomUtils.setToggleState(toggle, nested, !expanded);
+    });
+  }
+
+  // 4️⃣ Always append the field name
+  const label = document.createElement('span');
+  label.textContent = node._isArray ? `${key}[]` : key;
+  item.appendChild(label);
+
+  // 5️⃣ If there are children, wrap _them_ in a container
+  if (hasKids) {
+    const nested = document.createElement('div');
+    nested.className = 'nested-content';
+    nested.style.display = 'block';        // default: expanded
+    childKeys.forEach(ck => {
+      nested.appendChild(createTreeNode(ck, node.children[ck], depth + 1));
+    });
+    item.appendChild(nested);
+  }
+
+  return item;
+}
