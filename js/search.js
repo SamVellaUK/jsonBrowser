@@ -1,5 +1,5 @@
 import { state } from './main.js';
-import { splitJsonPath, parseArrayPath  } from './Utils.js';
+import { splitJsonPath, parsePathSegment } from './Utils.js';
 
 // Helper function to clear highlights within a specific element
 function clearHighlightsInElement(element) {
@@ -31,13 +31,61 @@ export function performSearch(query) {
 
   const allMatches = [];
   state.data.forEach((row, rowIndex) => {
-    allMatches.push(...deepSearch(row, rowIndex, lower, query.length)); // Pass query.length for termLength
+    allMatches.push(...deepSearch(row, rowIndex, lower, query.length));
   });
   state.search.matches = allMatches;
 
   console.log('[Search] Total logical occurrences found:', state.search.matches.length);
 
   applySearchHighlightsToNewContent(document.getElementById('data-table'));
+  
+  // Auto-highlight the first match if any matches exist
+  if (state.search.matches.length > 0) {
+    state.search.index = 0;
+    setTimeout(() => {
+      const firstMatch = state.search.matches[0];
+      const visibleSpan = state.search.domMatches.find(span => span.dataset.matchKey === firstMatch.key);
+      
+      if (visibleSpan) {
+        // First match is already visible
+        highlightCurrentMatch();
+        updateSearchCounter();
+        visibleSpan.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      } else {
+        // First match needs expansion
+        navigateToFirstMatch();
+      }
+    }, 50);
+  }
+}
+
+function navigateToFirstMatch() {
+  const firstMatch = state.search.matches[0];
+  const pathParts = splitJsonPath(firstMatch.path);
+  
+  if (pathParts.length === 0) {
+    highlightCurrentMatch();
+    updateSearchCounter();
+    return;
+  }
+
+  expandPathSequentially(pathParts, String(firstMatch.rowIndex), () => {
+    setTimeout(() => {
+      // Re-apply search highlights to ensure newly expanded content gets highlighted correctly
+      applySearchHighlightsToNewContent(document.getElementById('data-table'));
+      
+      setTimeout(() => {
+        refreshDomMatches();
+        highlightCurrentMatch();
+        updateSearchCounter();
+        
+        const activeSpan = document.querySelector('span.highlight-active');
+        if (activeSpan) {
+          activeSpan.scrollIntoView({ block: 'center', behavior: 'instant' });
+        }
+      }, 50);
+    }, 100);
+  });
 }
 
 export function navigateSearch(direction) {
@@ -57,56 +105,88 @@ export function navigateSearch(direction) {
   state.search.index = newIndex;
 
   const currentLogicalMatch = state.search.matches[state.search.index];
+  console.log(`[navigateSearch] Navigating to match ${newIndex + 1}/${totalLogicalMatches}:`, currentLogicalMatch);
   
+  // Always refresh DOM matches first
   refreshDomMatches(); 
 
+  // Try to find the current match in visible DOM
   let visibleSpan = state.search.domMatches.find(
     span => span.dataset.matchKey === currentLogicalMatch.key
   );
 
   if (visibleSpan) {
-    // console.log('[navigateSearch] Span for logical match is visible — highlighting.');
+    console.log('[navigateSearch] Match is already visible, highlighting it');
     highlightCurrentMatch(); 
     updateSearchCounter();
     visibleSpan.scrollIntoView({ block: 'center', behavior: 'smooth' });
     return;
   }
 
-  console.log('[navigateSearch] Span for logical match hidden — attempting to expand...');
+  console.log('[navigateSearch] Match is hidden, attempting to expand path:', currentLogicalMatch.path);
   
+  // The match needs to be expanded
   const pathParts = splitJsonPath(currentLogicalMatch.path);
-  if (pathParts.length > 0) {
-    expandPathSequentially(pathParts, String(currentLogicalMatch.rowIndex), () => {
-      refreshDomMatches();
-      const success = highlightCurrentMatch(); 
-      updateSearchCounter();
-      if (success) {
-        const newlyVisibleSpan = document.querySelector(`span.highlight-active[data-match-key="${currentLogicalMatch.key}"]`);
-        newlyVisibleSpan?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        // console.log('[navigateSearch] Successfully expanded and highlighted match.');
-      } else {
-        console.log('[navigateSearch] Failed to highlight after expansion. Logical match might still not be visible or DOM attributes mismatch.');
-      }
-    });
-  } else {
-    // Path was empty, cannot expand. Highlight based on current DOM.
+  
+  if (pathParts.length === 0) {
+    console.log('[navigateSearch] No path parts to expand');
     highlightCurrentMatch();
     updateSearchCounter();
+    return;
   }
+
+  expandPathSequentially(pathParts, String(currentLogicalMatch.rowIndex), () => {
+    console.log('[navigateSearch] Expansion complete, refreshing and highlighting');
+    
+    // Give DOM time to stabilize after expansion
+    setTimeout(() => {
+      // Re-apply search highlights to the entire document to ensure newly expanded content gets highlighted
+      applySearchHighlightsToNewContent(document.getElementById('data-table'));
+      
+      // Small delay to let highlighting complete
+      setTimeout(() => {
+        refreshDomMatches();
+        const success = highlightCurrentMatch();
+        updateSearchCounter();
+        
+        if (success) {
+          const activeSpan = document.querySelector('span.highlight-active');
+          if (activeSpan) {
+            activeSpan.scrollIntoView({ block: 'center', behavior: 'instant' });
+          }
+        } else {
+          console.warn('[navigateSearch] Still failed to highlight after re-applying highlights');
+        }
+      }, 50);
+    }, 100);
+  });
 }
 
 export function highlightCurrentMatch() {
+  // Clear all previous active highlights
   document.querySelectorAll('span.highlight-active')
     .forEach(el => el.classList.remove('highlight-active'));
 
   if (state.search.index < 0 || state.search.index >= state.search.matches.length) {
+    console.log('[highlightCurrentMatch] Invalid search index');
     return false;
   }
 
   const currentLogicalMatch = state.search.matches[state.search.index];
-  if (!currentLogicalMatch) return false;
+  if (!currentLogicalMatch) {
+    console.log('[highlightCurrentMatch] No current logical match');
+    return false;
+  }
  
-  refreshDomMatches();  // Ensure domMatches is up-to-date
+  // Ensure domMatches is up-to-date
+  refreshDomMatches();
+
+  console.log(`[highlightCurrentMatch] Looking for match:`, {
+    key: currentLogicalMatch.key,
+    path: currentLogicalMatch.path,
+    rowIndex: currentLogicalMatch.rowIndex,
+    availableSpans: state.search.domMatches.length
+  });
 
   // Find the specific DOM span that corresponds to the currentLogicalMatch using its unique key
   let target = state.search.domMatches.find(
@@ -114,21 +194,59 @@ export function highlightCurrentMatch() {
   );
   
   if (!target) {
-    // console.log('[highlightCurrentMatch] No matching DOM span found for current logical match key:', currentLogicalMatch.key);
+    console.log('[highlightCurrentMatch] Target span not found by key, trying path/row/offset matching');
+    
+    // More comprehensive fallback: find span with matching path, row, and text content
+    target = state.search.domMatches.find(span => {
+      const spanPath = span.dataset.matchPath;
+      const spanRowIndex = span.dataset.rowIndex;
+      const spanText = span.textContent;
+      
+      const pathMatches = spanPath === currentLogicalMatch.path;
+      const rowMatches = String(spanRowIndex) === String(currentLogicalMatch.rowIndex);
+      const textMatches = spanText.toLowerCase().includes(state.search.query);
+      
+      console.log(`[highlightCurrentMatch] Checking span:`, {
+        spanPath, 
+        spanRowIndex, 
+        spanText,
+        pathMatches,
+        rowMatches,
+        textMatches,
+        expectedPath: currentLogicalMatch.path,
+        expectedRow: currentLogicalMatch.rowIndex
+      });
+      
+      return pathMatches && rowMatches && textMatches;
+    });
+  }
+  
+  if (!target) {
+    console.log('[highlightCurrentMatch] Still no matching span found - trying text-only matching');
+    
+    // Last resort: find any span in the right location with matching text
+    target = state.search.domMatches.find(span => {
+      const spanText = span.textContent.toLowerCase();
+      const queryMatches = spanText.includes(state.search.query);
+      const rowElement = span.closest('tr[data-row-index]');
+      const rowMatches = rowElement && String(rowElement.dataset.rowIndex) === String(currentLogicalMatch.rowIndex);
+      
+      return queryMatches && rowMatches;
+    });
+  }
+  
+  if (!target) {
+    console.log('[highlightCurrentMatch] No matching span found in DOM');
     return false; 
   }
 
   target.classList.add('highlight-active');
-  // Scrolling is handled by navigateSearch to avoid double scroll or scroll on mere re-highlight
-  // target.scrollIntoView({ block: 'center', behavior: 'smooth' }); 
+  console.log('[highlightCurrentMatch] Successfully highlighted match with key:', target.dataset.matchKey);
   return true;
 }
 
 function clearHighlights() {
   clearHighlightsInElement(document.body); 
-  // state.search.domMatches = []; // Will be rebuilt by refreshDomMatches
-  // state.search.query = ''; // Handled by performSearch
-  // state.search.index = -1; // Handled by performSearch
   clearActiveHighlight(); 
 }
 
@@ -138,9 +256,9 @@ function clearActiveHighlight() {
   );
 }
 
-function deepSearch(root, rowIndex, lowerQuery, termLength) { // Added termLength
+function deepSearch(root, rowIndex, lowerQuery, termLength) {
   const matches = [];
-  const stack = [{ node: root, pathSegments: [] }]; // Renamed 'path' to 'pathSegments' for clarity
+  const stack = [{ node: root, pathSegments: [] }];
 
   while (stack.length) {
     const { node, pathSegments } = stack.pop();
@@ -176,12 +294,12 @@ function deepSearch(root, rowIndex, lowerQuery, termLength) { // Added termLengt
       matches.push({ 
         rowIndex, 
         path: pathStr, 
-        value: valueStr, // The full original value string where the term was found
+        value: valueStr,
         key, 
-        offset,         // The start offset of this specific occurrence
-        termLength      // Length of the search term
+        offset,
+        termLength
       });
-      offset = lowerValue.indexOf(lowerQuery, offset + 1); // Search for next occurrence
+      offset = lowerValue.indexOf(lowerQuery, offset + 1);
     }
   }
   return matches;
@@ -194,52 +312,58 @@ export function updateSearchCounter() {
   const totalLogicalMatches = state.search.matches.length;
   const visibleDomMatchesCount = state.search.domMatches.length;
   
-  let currentIndexInUI = 0;
+  // Find current position in visible DOM matches
+  let currentIndexInVisibleDOM = 0;
   if (totalLogicalMatches > 0 && state.search.index !== -1) {
-      const activeSpan = document.querySelector('span.highlight-active');
-      if(activeSpan){
-        // Find the 0-based index of the activeSpan within the filtered domMatches array
-        const idxInDomMatches = state.search.domMatches.indexOf(activeSpan);
-        if(idxInDomMatches !== -1) {
-            currentIndexInUI = idxInDomMatches + 1; // 1-based for UI
-        } else {
-          // Active span exists but not in current domMatches (should not happen if refreshDomMatches is effective)
-          // Or if the active span is for a hidden match
-          currentIndexInUI = 0; 
-        }
-      } else if (visibleDomMatchesCount > 0 && state.search.index >=0 && state.search.index < totalLogicalMatches) {
-        // A logical match is "current" (state.search.index is valid), but no span is active.
-        // This could mean the current logical match is not visible or highlighting failed.
-        currentIndexInUI = 0;
+    const currentLogicalMatch = state.search.matches[state.search.index];
+    const activeSpan = document.querySelector('span.highlight-active');
+    
+    if (activeSpan && currentLogicalMatch) {
+      // Find the position of the active span in the visible DOM matches
+      const activeSpanIndex = state.search.domMatches.findIndex(span => 
+        span === activeSpan
+      );
+      
+      if (activeSpanIndex !== -1) {
+        currentIndexInVisibleDOM = activeSpanIndex + 1;
+      } else {
+        // If we can't find the active span, but we know we have a current match,
+        // show the logical position to avoid showing 0
+        currentIndexInVisibleDOM = state.search.index + 1;
       }
+    } else if (state.search.index >= 0) {
+      // No active span yet, but we have a valid index - show logical position
+      currentIndexInVisibleDOM = state.search.index + 1;
+    }
   }
 
-  let html = `${currentIndexInUI} of ${visibleDomMatchesCount}`;
+  let html = `${currentIndexInVisibleDOM} of ${visibleDomMatchesCount || totalLogicalMatches}`;
   const hiddenCount = totalLogicalMatches - visibleDomMatchesCount;
 
   if (hiddenCount > 0) {
     html += ` <span style="color: #cc0000; font-size: smaller; margin-left: 8px;">(${hiddenCount} hidden)</span>`;
   } else if (totalLogicalMatches > 0 && visibleDomMatchesCount === 0 && state.search.query) {
-    html = `0 of 0 <span style="color: #cc0000; font-size: smaller; margin-left: 8px;">(${totalLogicalMatches} hidden)</span>`;
+    html = `${state.search.index + 1} of ${totalLogicalMatches} <span style="color: #cc0000; font-size: smaller; margin-left: 8px;">(all hidden)</span>`;
   } else if (!state.search.query) {
     html = `0 of 0`;
   }
+  
   counter.innerHTML = html;
+  console.log('[updateSearchCounter]', html.replace(/<[^>]*>/g, ''));
 }
 
 export function applySearchHighlightsToNewContent(root = document.getElementById('data-table')) {
-  if (!state.search.query || !root) { // Matches array check removed, allow clearing if query existed but now no matches
+  if (!state.search.query || !root) {
     if(root) clearHighlightsInElement(root); 
     refreshDomMatches();
     updateSearchCounter();
     return;
   }
   
-  // console.log('[applySearchHighlightsToNewContent] Clearing existing highlights in root and adding new ones.');
   clearHighlightsInElement(root); 
 
   const lowerQuery = state.search.query;
-  const termLength = state.search.query.length; // Use actual query length, not lowerQuery
+  const termLength = state.search.query.length;
 
   const walker = document.createTreeWalker( root, NodeFilter.SHOW_TEXT, {
       acceptNode: node => (node.parentNode?.nodeName === 'SCRIPT' || node.parentNode?.nodeName === 'STYLE') ? NodeFilter.FILTER_REJECT : 
@@ -253,12 +377,11 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
   let highlightsAddedCount = 0;
 
   textNodesToProcess.forEach(textNode => {
-    const originalTextValue = textNode.nodeValue; // Full original text of this node
+    const originalTextValue = textNode.nodeValue;
     const lowerTextValue = originalTextValue.toLowerCase();
     
     let cellElement = textNode.parentNode;
     let currentPath = '';
-    let isKeyCell = false;
 
     while (cellElement && cellElement !== root && cellElement.nodeType === Node.ELEMENT_NODE) {
         if (cellElement.hasAttribute('data-path')) {
@@ -268,16 +391,14 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
             currentPath = cellElement.getAttribute('data-column-path'); break;
         }
         if (cellElement.nodeName === 'TD' && cellElement.matches(':first-child') && cellElement.hasAttribute('data-key')) {
-            isKeyCell = true;
-            // Construct an approximate path for key cell for matching purposes
             const parentRow = cellElement.closest('tr[data-row-index]');
-            const parentPathContainer = parentRow ? parentRow.closest('[data-path]') : null; // Find closest data-path from parent TR
+            const parentPathContainer = parentRow ? parentRow.closest('[data-path]') : null;
             let baseKeyPath = parentPathContainer ? parentPathContainer.dataset.path : '';
             
             const arrayItemContainer = cellElement.closest('.nested-table[data-parent-path]');
-            if(arrayItemContainer && cellElement.parentElement.dataset.arrayIndex !== undefined) { // Cell for an array index itself
+            if(arrayItemContainer && cellElement.parentElement.dataset.arrayIndex !== undefined) {
                  baseKeyPath = arrayItemContainer.dataset.parentPath + `[${cellElement.parentElement.dataset.arrayIndex}]`;
-            } else { // Cell for an object key
+            } else {
                  baseKeyPath = (baseKeyPath ? baseKeyPath + '.' : '') + cellElement.dataset.key;
             }
             currentPath = baseKeyPath;
@@ -295,12 +416,6 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
       rowElement = rowElement.parentNode;
     }
     
-    if (currentRowIndex === null || currentPath === '') { // Path can be empty for root level properties in some structures
-        // console.warn('[applySearchHighlights] Text node without sufficient row/path context:', originalTextValue);
-        // We might still highlight visually but without full logical linking.
-        // For now, let's allow highlighting if the text matches, but linking will be partial.
-    }
-
     let matchStartIndex = lowerTextValue.indexOf(lowerQuery);
     if (matchStartIndex === -1) return;
 
@@ -318,12 +433,11 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
       span.textContent = matchedText;
 
       // Find the *specific* logical match from state.search.matches
-      // Note: isKeyCell may need more refined logic if keys themselves are complex and have paths
       const logicalMatchForThisOccurrence = state.search.matches.find(m => 
         m.path === currentPath && 
         String(m.rowIndex) === String(currentRowIndex) &&
         m.offset === matchStartIndex &&
-        m.value === originalTextValue // Ensure it's from the same original full text node value
+        m.value === originalTextValue
       );
 
       if (logicalMatchForThisOccurrence) {
@@ -331,12 +445,9 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
         span.dataset.matchPath = logicalMatchForThisOccurrence.path; 
         span.dataset.rowIndex = String(logicalMatchForThisOccurrence.rowIndex);
       } else if (currentPath !== '' && currentRowIndex !== null) { 
-        // Fallback if precise logical match not found (e.g. path mismatch or value discrepancy)
-        // This indicates a potential issue in path/value alignment between deepSearch and applySearchHighlights
-        // console.warn("Could not find precise logical match for highlight:", {currentPath, currentRowIndex, matchStartIndex, originalTextValue});
         span.dataset.matchPath = currentPath;
         span.dataset.rowIndex = String(currentRowIndex);
-        span.dataset.matchKey = `${currentRowIndex}|${currentPath}|${matchStartIndex}`; // Fallback key
+        span.dataset.matchKey = `${currentRowIndex}|${currentPath}|${matchStartIndex}`;
       }
       
       frag.appendChild(span);
@@ -352,26 +463,23 @@ export function applySearchHighlightsToNewContent(root = document.getElementById
     if (textNode.parentNode) {
         textNode.parentNode.replaceChild(frag, textNode);
     } else {
-        // console.warn("Text node no longer has a parent during highlighting:", textNode);
+        console.warn("Text node no longer has a parent during highlighting:", textNode);
     }
   });
   
-  // console.log(`[applySearchHighlightsToNewContent] Highlights added/updated: ${highlightsAddedCount}`);
-  setTimeout(() => {
-    refreshDomMatches(); 
-    updateSearchCounter(); 
-    highlightCurrentMatch(); 
-  }, 0);
+  // Immediate refresh and update
+  refreshDomMatches(); 
+  updateSearchCounter(); 
+  highlightCurrentMatch(); 
 }
 
 export function refreshDomMatches() {
   state.search.domMatches = Array.from(
     document.querySelectorAll('span.highlight')
   ).filter(el => el.offsetParent !== null);
+  
+  console.log('[refreshDomMatches] Found', state.search.domMatches.length, 'visible DOM matches');
 }
-
-// expandPathSequentially and findCellForPath remain unchanged from your latest version,
-// but ensure rowIndex is consistently passed as a string to findCellForPath if it expects it for attribute selectors.
 
 function expandPathSequentially(pathParts, rowIndexStr, callback, currentDepth = 0) {
   const fullPathToExpand = pathParts.slice(0, currentDepth + 1).reduce((acc, seg) => {
@@ -379,92 +487,135 @@ function expandPathSequentially(pathParts, rowIndexStr, callback, currentDepth =
     return acc ? `${acc}.${seg}` : seg;
   }, '');
 
-  // We need to expand containers. The actual value is at the full pathParts length.
-  // So we expand up to the parent of the target value.
-  if (currentDepth >= pathParts.length -1 && !pathParts[currentDepth].includes('[')) { // If last part is not an array, it's a direct value, no container to expand.
-      if (pathParts.length ===1 && !pathParts[0].includes('[')) { // single, non-array path part, e.g. "fieldName"
-          // no expansion needed for the value itself, just its parent row.
-      } else if (pathParts[currentDepth].includes('[')) {
-          // if current part is array like "parent.arr[0]", we expand "parent.arr"
-          // then let highlightCurrentMatch find the span within the loaded content.
-          // The check above should be currentDepth >= pathParts.length - 1
-      } else {
-        // console.log("Reached target depth for value, calling callback for path:", fullPathToExpand);
-      }
-      callback();
-      return;
+  console.log(`[expandPathSequentially] Expanding path: ${fullPathToExpand}, depth: ${currentDepth}`);
+
+  if (currentDepth >= pathParts.length) {
+    console.log(`[expandPathSequentially] Reached target depth, calling callback`);
+    callback();
+    return;
   }
 
+  // For the final segment that's just a field name (not array/object), we don't need to expand it
+  if (currentDepth === pathParts.length - 1 && !pathParts[currentDepth].includes('[')) {
+    console.log(`[expandPathSequentially] Final segment is a field, calling callback`);
+    callback();
+    return;
+  }
 
-  // console.log(`Attempting to find cell for segment container: ${fullPathToExpand} in row ${rowIndexStr}`);
   const cell = findCellForPath(fullPathToExpand, rowIndexStr); 
 
   if (!cell) {
-      // console.warn(`Cell not found for container: ${fullPathToExpand} in row ${rowIndexStr}. Cannot expand further.`);
-      callback(); 
-      return;
+    console.log(`[expandPathSequentially] No cell found for path: ${fullPathToExpand}`);
+    callback(); 
+    return;
   }
 
-  const toggle = cell.querySelector(':scope > .toggle-nest');
-  const nestedContent = cell.querySelector(':scope > .nested-content');
+  // Check if this cell is expandable
+  const isExpandable = cell.hasAttribute('data-expandable') || cell.querySelector('.toggle-nest');
+  if (!isExpandable) {
+    console.log(`[expandPathSequentially] Cell not expandable, continuing to next depth`);
+    expandPathSequentially(pathParts, rowIndexStr, callback, currentDepth + 1);
+    return;
+  }
+
+  const toggle = cell.querySelector('.toggle-nest');
+  const nestedContent = cell.querySelector('.nested-content');
 
   if (toggle && nestedContent) {
-      const isExpanded = nestedContent.style.display === 'block' || nestedContent.style.display === '';
+    const computedDisplay = window.getComputedStyle(nestedContent).display;
+    const isExpanded = computedDisplay !== 'none';
+    
+    if (!isExpanded) {
+      console.log(`[expandPathSequentially] Expanding cell at path: ${fullPathToExpand}`);
       
-      if (!isExpanded) {
-          // console.log(`Expanding container: ${fullPathToExpand}`);
-          toggle.click(); 
-          
-          let checkCount = 0;
-          const maxChecks = 40; // Increased checks
-          const checkLoaded = () => {
-              checkCount++;
-              const stillNotExpanded = nestedContent.style.display === 'none';
-              // More robust check for content readiness, e.g. specific child indicating data loaded.
-              const contentNotReady = nestedContent.childElementCount === 0 && 
-                                      !(nestedContent.querySelector('.nested-table') || nestedContent.textContent.length > 10);
+      // Simulate click on the cell instead of the toggle to use our improved click handler
+      cell.click();
+      
+      let checkCount = 0;
+      const maxChecks = 40;
+      const checkLoaded = () => {
+        checkCount++;
+        const stillNotExpanded = window.getComputedStyle(nestedContent).display === 'none';
+        const contentNotReady = nestedContent.childElementCount === 0;
 
-
-              if (!stillNotExpanded && !contentNotReady) {
-                  // console.log("Expansion seems complete for:", fullPathToExpand);
-                  expandPathSequentially(pathParts, rowIndexStr, callback, currentDepth + 1);
-              } else if (checkCount < maxChecks) {
-                  // console.log("Waiting for expansion/content for:", fullPathToExpand, {stillNotExpanded, contentNotReady});
-                  setTimeout(checkLoaded, 50);
-              } else {
-                  console.warn("Timeout waiting for expansion/content for:", fullPathToExpand);
-                  expandPathSequentially(pathParts, rowIndexStr, callback, currentDepth + 1); 
-              }
-          };
-          setTimeout(checkLoaded, 50); 
-          return;
-      }
+        if (!stillNotExpanded && !contentNotReady) {
+          console.log(`[expandPathSequentially] Cell expanded successfully`);
+          // No delay - continue immediately
+          expandPathSequentially(pathParts, rowIndexStr, callback, currentDepth + 1);
+        } else if (checkCount < maxChecks) {
+          setTimeout(checkLoaded, 25); // Faster checking
+        } else {
+          console.warn(`[expandPathSequentially] Timeout waiting for expansion/content for: ${fullPathToExpand}`);
+          expandPathSequentially(pathParts, rowIndexStr, callback, currentDepth + 1); 
+        }
+      };
+      setTimeout(checkLoaded, 25); // Start checking sooner 
+      return;
+    } else {
+      console.log(`[expandPathSequentially] Cell already expanded`);
+    }
   }
   expandPathSequentially(pathParts, rowIndexStr, callback, currentDepth + 1);
 }
 
-
 function findCellForPath(path, rowIndex) { 
-  // console.log(`findCellForPath: path="${path}", rowIndex="${rowIndex}"`);
-  let cell = document.querySelector(
-      `#data-table tr[data-row-index="${rowIndex}"] td[data-column-path="${path}"]`
-  );
-  if (cell) return cell;
+  console.log(`[findCellForPath] Looking for cell: path="${path}", row="${rowIndex}"`);
   
+  // First try to find it in the main table
+  let cell = document.querySelector(
+    `#data-table tr[data-row-index="${rowIndex}"] td[data-column-path="${path}"]`
+  );
+  if (cell) {
+    console.log(`[findCellForPath] Found cell in main table`);
+    return cell;
+  }
+  
+  // Try to find the row first
   const rowElement = document.querySelector(`#data-table tr[data-row-index="${rowIndex}"]`);
-  if (rowElement) {
-    // Search for data-path which should be the exact path to the item the cell represents
-    // This should be preferred for nested content.
-    const escapedPath = CSS.escape(path); // Use CSS.escape for robust selectors
-    cell = rowElement.querySelector(`td[data-path="${escapedPath}"]`);
-    if (cell) return cell;
+  if (!rowElement) {
+    console.log(`[findCellForPath] Row not found: ${rowIndex}`);
+    return null;
+  }
 
-    // Fallback to iterating if direct query fails (e.g. complex paths not easily selectable)
-    const allCellsInRow = rowElement.querySelectorAll('td[data-path], td[data-column-path]');
-    for(let c of allCellsInRow){
-        if(c.dataset.path === path || c.dataset.columnPath === path) return c;
+  // Look for cells with matching data-path attribute (including in nested tables)
+  const allCells = rowElement.querySelectorAll('td[data-path], td[data-column-path]');
+  for (let c of allCells) {
+    if (c.dataset.path === path || c.dataset.columnPath === path) {
+      console.log(`[findCellForPath] Found cell with matching path`);
+      return c;
     }
   }
-  // console.warn(`findCellForPath: Cell not found for path="${path}", rowIndex="${rowIndex}"`);
+
+  // For nested paths, we might need to look in already-expanded nested tables
+  // Try to find parent paths and look within them
+  const pathParts = splitJsonPath(path);
+  if (pathParts.length > 1) {
+    // Build parent path
+    const parentPath = pathParts.slice(0, -1).reduce((acc, seg) => {
+      if (seg.startsWith('[')) return `${acc}${seg}`;
+      return acc ? `${acc}.${seg}` : seg;
+    }, '');
+    
+    console.log(`[findCellForPath] Trying parent path: ${parentPath}`);
+    
+    // Find the parent cell
+    const parentCell = findCellForPath(parentPath, rowIndex);
+    if (parentCell) {
+      // Look for the nested table within this parent
+      const nestedContent = parentCell.querySelector('.nested-content');
+      if (nestedContent) {
+        // Look for cells within the nested content
+        const nestedCells = nestedContent.querySelectorAll('td[data-path]');
+        for (let nc of nestedCells) {
+          if (nc.dataset.path === path) {
+            console.log(`[findCellForPath] Found cell in nested content`);
+            return nc;
+          }
+        }
+      }
+    }
+  }
+  
+  console.log(`[findCellForPath] Cell not found`);
   return null;
 }

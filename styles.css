@@ -1,265 +1,262 @@
 body {
-      font-family: 'Consolas', 'Courier New', Courier, monospace;
-      font-size: 11pt;
-      padding-top: 50px;
-    }
-    table {
-      border-collapse: collapse;
-      width: auto;
-      max-width: 100%;
-    }
-    table th, table td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      white-space: nowrap;
-      font-size: 11pt;
-    }
-    table th {
-      background-color: #f2f2f2;
-      cursor: pointer;
-    }
-    table tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-    table tr:hover {
-      background-color: #f1f1f1;
-    }
-    table tr.highlighted {
-      background-color: #fff3b0 !important; /* Softer yellow and override hover */
-    }
-    .highlighted {
-      background-color: yellow;
-    }
-    .nested-table th, .nested-table td {
-      background-color: white !important;
-    }
-    .nested-table tr:nth-child(even) {
-      background-color: #ffffff !important;
-    }
-    .nested-table tr:nth-child(odd) {
-      background-color: #f9f9f9 !important;
-    }
-    .nested-table tr:hover {
-      background-color: #f1f1f1 !important;
-    }
-    .toggle-nest {
-      color: #007BFF;
-      cursor: pointer;
-      margin-right: 6px;
-    }
-    .toggle-nest:hover {
-      text-decoration: underline;
-    }
-    .nested-content {
-      margin-left: 16px;
-      padding: 4px;
-      display: none;
-    }
-    .top-menu {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      background-color: #002855;
-      padding: 10px;
-      z-index: 1000;
-    }
-    .top-menu button {
-      margin-right: 10px;
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      padding: 10px 20px;
-      font-family: 'Consolas', 'Courier New', Courier, monospace;
-      font-size: 11pt;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-    .top-menu button:hover {
-      background-color: #0056b3;
-    }
+  font-family: 'Consolas', 'Courier New', Courier, monospace;
+  font-size: 11pt;
+  padding-top: 90px; /* Increased for path bar */
+}
+table {
+  border-collapse: collapse;
+  width: auto;
+  max-width: 100%;
+}
+table th, table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  white-space: nowrap;
+  font-size: 11pt;
+}
+table th {
+  background-color: #f2f2f2;
+  cursor: pointer;
+}
+table tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+table tr:hover {
+  background-color: #f1f1f1;
+}
+table tr.highlighted {
+  background-color: #fff3b0 !important; /* Softer yellow and override hover */
+}
+.highlighted {
+  background-color: yellow;
+}
+.nested-table th, .nested-table td {
+  background-color: white !important;
+}
+.nested-table tr:nth-child(even) {
+  background-color: #ffffff !important;
+}
+.nested-table tr:nth-child(odd) {
+  background-color: #f9f9f9 !important;
+}
+.nested-table tr:hover {
+  background-color: #f1f1f1 !important;
+}
+.toggle-nest {
+  color: #007BFF;
+  cursor: pointer;
+  margin-right: 6px;
+}
+.toggle-nest:hover {
+  text-decoration: underline;
+}
+.nested-content {
+  margin-left: 16px;
+  padding: 4px;
+  display: none;
+}
+.top-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: #002855;
+  padding: 10px;
+  z-index: 1000;
+}
+.top-menu button {
+  margin-right: 10px;
+  background-color: #007BFF;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-family: 'Consolas', 'Courier New', Courier, monospace;
+  font-size: 11pt;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.top-menu button:hover {
+  background-color: #0056b3;
+}
 
-    .json-path {
-      color: #888; /* Medium grey */
-      font-size: 0.9em;
-      margin-top: 2px;
-      display: block; /* Display on a new line */
-    }
+.json-path {
+  color: #888; /* Medium grey */
+  font-size: 0.9em;
+  margin-top: 2px;
+  display: block; /* Display on a new line */
+}
 
+.edit-button {
+  border: 1px solid #007BFF; /* Blue border */
+  color: #007BFF; /* Blue text */
+  background: none;
+  padding: 5px 10px;
+  cursor: pointer;
+}
 
-    .edit-button {
-      border: 1px solid #007BFF; /* Blue border */
-      color: #007BFF; /* Blue text */
-      background: none;
-      padding: 5px 10px;
-      cursor: pointer;
-    }
-    
+.edit-button:hover {
+  background-color: #E3F2FD; /* Light blue background on hover */
+}
 
-    .edit-button:hover {
-      background-color: #E3F2FD; /* Light blue background on hover */
-    }
+.edit-button.active {
+  background-color: #c62828; /* Red background */
+  color: white; /* White text */
+  border-color: #c62828; /* Red border */
+}
 
-    .edit-button.active {
-      background-color: #c62828; /* Red background */
-      color: white; /* White text */
-      border-color: #c62828; /* Red border */
-    }
+.column-chooser-button {
+  border: 1px solid #007BFF; /* Blue border */
+  color: #007BFF; /* Blue text */
+  background: none;
+  padding: 5px 10px;
+  cursor: pointer;
+}
 
-    .column-chooser-button {
-      border: 1px solid #007BFF; /* Blue border */
-      color: #007BFF; /* Blue text */
-      background: none;
-      padding: 5px 10px;
-      cursor: pointer;
-    }
+.column-chooser-button:hover {
+  background-color: #E3F2FD; /* Light blue background on hover */
+}
 
-    .column-chooser-button:hover {
-      background-color: #E3F2FD; /* Light blue background on hover */
-    }
+.column-chooser-button.active {
+  background-color: #c62828; /* Red background */
+  color: white; /* White text */
+  border-color: #c62828; /* Red border */
+}
 
-    .column-chooser-button.active {
-      background-color: #c62828; /* Red background */
-      color: white; /* White text */
-      border-color: #c62828; /* Red border */
-    }
+.promote-button {
+  font-weight: bold;
+  color: #007BFF;
+  cursor: pointer;
+  margin-left: 8px; /* Align with key name */
+}
 
-    .promote-button {
-      font-weight: bold;
-      color: #007BFF;
-      cursor: pointer;
-      margin-left: 8px; /* Align with key name */
-    }
+.promote-button:hover {
+  text-decoration: underline;
+}
 
-    .promote-button:hover {
-      text-decoration: underline;
-    }
+.json-paths-button {
+  color: #888; /* Medium grey */
+  font-size: 0.9em;
+  margin-top: 2px;
+  
+}
+.json-paths-button:hover {
+  background-color: #E3F2FD; /* Light blue background on hover */
+}
 
-    .json-paths-button {
-      color: #888; /* Medium grey */
-      font-size: 0.9em;
-      margin-top: 2px;
-      
-    }
-    .json-paths-button:hover {
-      background-color: #E3F2FD; /* Light blue background on hover */
-    }
+.json-paths-button.active {
+  background-color: #c62828; /* Red background */
+  color: white; /* White text */
+  border-color: #c62828; /* Red border */
+}
+.row-number {
+  color: #888; /* Medium grey */
+  font-size: 0.9em;
+}
 
-    .json-paths-button.active {
-      background-color: #c62828; /* Red background */
-      color: white; /* White text */
-      border-color: #c62828; /* Red border */
-    }
-    .row-number {
-      color: #888; /* Medium grey */
-      font-size: 0.9em;
-    }
+#column-chooser {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 800px;
+  max-height: 500px;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  padding: 20px;
+  z-index: 1000;
+}
 
-    #column-chooser {
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      width: 800px;
-      max-height: 500px;
-      transform: translate(-50%, -50%);
-      background-color: white;
-      border: 2px solid #ccc;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      padding: 20px;
-      z-index: 1000;
-    }
-    
-    #column-chooser h3 {
-      margin-top: 0;
-    }
-    
-    #column-chooser .field-tree {
-      max-height: 350px;
-      overflow-y: auto;
-      border: 1px solid #ddd;
-      padding: 10px;
-      margin-top: 10px;
-    }
-    
-    #apply-columns {
-      margin-top: 10px;
-      padding: 5px 15px;
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }    
-    
-    #close-column-chooser {
-      margin-top: 10px;
-      padding: 5px 15px;
-      background-color: #007BFF;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    
-    #close-column-chooser:hover {
-      background-color: #0056b3;
-    }
+#column-chooser h3 {
+  margin-top: 0;
+}
 
-    
-    #column-chooser .field-tree .toggle {
-      display: inline-block;
-      width: 16px;
-      text-align: center;
-      cursor: pointer;
-      user-select: none;
-      color: #007BFF;
-      margin-right: 5px;
-    }
-    
-    #column-chooser .field-tree label {
-      margin-left: 5px;
-    }
-    
-    #column-chooser .child-container {
-      margin-left: 20px; /* Indent for nesting */
-    }
-    
-    #column-chooser .field-tree div.field-item {
-      margin: 2px 0;
-    }
+#column-chooser .field-tree {
+  max-height: 350px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+  margin-top: 10px;
+}
 
-    #available-fields {
-      width: 50%;
-      border-right: 1px solid #ccc;
-      padding-right: 10px;
-    }
-    
-    #active-columns-panel {
-      width: 50%;
-      padding-left: 10px;
-    }
+#apply-columns {
+  margin-top: 10px;
+  padding: 5px 15px;
+  background-color: #007BFF;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}    
 
-    .highlight {
-      background-color: #ffffcc !important;
-    }
-    .highlight-active {
-      box-shadow: 0 0 0 2px #ffcc00 inset;
-    }
+#close-column-chooser {
+  margin-top: 10px;
+  padding: 5px 15px;
+  background-color: #007BFF;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
 
-    #search-counter {
-      margin-top: 2px;
-      font-size: 10px;
-      color: #88a; /* soft grey-blue */
-      text-align: left;
-    }
+#close-column-chooser:hover {
+  background-color: #0056b3;
+}
 
-    pre span.string { color: green; }
-    pre span.number { color: darkorange; }
-    pre span.boolean { color: blue; }
-    pre span.null { color: magenta; }
-    pre span.key { color: red; }
+#column-chooser .field-tree .toggle {
+  display: inline-block;
+  width: 16px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  color: #007BFF;
+  margin-right: 5px;
+}
+
+#column-chooser .field-tree label {
+  margin-left: 5px;
+}
+
+#column-chooser .child-container {
+  margin-left: 20px; /* Indent for nesting */
+}
+
+#column-chooser .field-tree div.field-item {
+  margin: 2px 0;
+}
+
+#available-fields {
+  width: 50%;
+  border-right: 1px solid #ccc;
+  padding-right: 10px;
+}
+
+#active-columns-panel {
+  width: 50%;
+  padding-left: 10px;
+}
+
+.highlight {
+  background-color: #ffffcc !important;
+}
+.highlight-active {
+  box-shadow: 0 0 0 2px #ffcc00 inset;
+}
+
+#search-counter {
+  margin-top: 2px;
+  font-size: 10px;
+  color: #88a; /* soft grey-blue */
+  text-align: left;
+}
+
+pre span.string { color: green; }
+pre span.number { color: darkorange; }
+pre span.boolean { color: blue; }
+pre span.null { color: magenta; }
+pre span.key { color: red; }
 
 .json-path { display: none; font: 11px/1.3 monospace; color: #888; }
 #table-container.show-paths .json-path { display: block; }
@@ -268,59 +265,73 @@ th.sorted-desc::after { content: ' ▼'; font-size:0.8em; }
 
 /* hide promote buttons by default... */
 .promote-button {
-  display: none;
+display: none;
+font-weight: bold;
+color: #007BFF;
+cursor: pointer;
+margin-left: 8px;
 }
 
-/* ...but show them when we're in editMode */
+.promote-button:hover {
+text-decoration: underline;
+}
+
+/* Show promote buttons when in edit mode */
 #table-container.edit-mode .promote-button {
-  display: inline;
+display: inline;
+}
+
+/* Also show promote buttons in nested tables when edit mode is active */
+body.edit-mode .nested-table .promote-button,
+#table-container.edit-mode .nested-table .promote-button {
+display: inline;
 }
 
 /* ── Override the flex layout so each node is on its own line ── */
 #column-chooser .field-tree div {
-  /* undo the flex on tree nodes */
-  display: block;
+/* undo the flex on tree nodes */
+display: block;
 }
 
 /* ensure each item itself is block-level and spaced */
 #column-chooser .field-tree .field-item {
-  display: block;
-  margin: 4px 0;
+display: block;
+margin: 4px 0;
 }
 
 /* indent nested children */
 #column-chooser .field-tree .child-container {
-  display: block;
-  margin-left: 20px; /* or whatever indent feels right */
+display: block;
+margin-left: 20px; /* or whatever indent feels right */
 }
 
 /* ── styles.css ── */
 
 /* 1) Give the overlay a fixed (or minimum) height */
 #column-chooser {
-  width: 800px;
-  height: 500px;       /* enforce a static height */
-  /* or, if you want it to grow but never shrink: */
-  /* min-height: 500px; */
-  overflow: hidden;    /* prevent any internal collapse from pulling it in */
+width: 800px;
+height: 500px;       /* enforce a static height */
+/* or, if you want it to grow but never shrink: */
+/* min-height: 500px; */
+overflow: hidden;    /* prevent any internal collapse from pulling it in */
 }
 
 /* 2) Keep the tree scrollable inside */
 #column-chooser .field-tree {
-  /* you might need to bump this up to fill more of the 500px: */
-  max-height: 400px;   /* e.g. 500px minus header/footer space */
-  overflow-y: auto;
+/* you might need to bump this up to fill more of the 500px: */
+max-height: 400px;   /* e.g. 500px minus header/footer space */
+overflow-y: auto;
 }
 /* 1) Make the tree a fixed-height scrollbox */
 #column-chooser .field-tree {
-  height: 420px !important;   /* lock height (instead of max-height) */
-  overflow-y: scroll;
+height: 420px !important;   /* lock height (instead of max-height) */
+overflow-y: scroll;
 }
 
-/* 2) Do the same for the right-hand “Active Columns” area */
+/* 2) Do the same for the right-hand "Active Columns" area */
 #column-chooser #active-columns {
-  height: 420px !important;              /* same height as the tree */
-  overflow-y:scroll;
+height: 420px !important;              /* same height as the tree */
+overflow-y:scroll;
 }
 
 #column-chooser .field-item {
@@ -332,62 +343,160 @@ border-color: #cccccc;
 
 /* flex row for checkbox + text */
 #column-chooser .field-item-container {
-  display: flex;
-  align-items: center;
+display: flex;
+align-items: center;
 }
 
 /* ensure checkbox sits flush left */
 #column-chooser .field-item-container input[type="checkbox"] {
-  margin: 0 8px 0 0;
+margin: 0 8px 0 0;
 }
 
 /* label should flex/grow if you need it */
 #column-chooser .field-item-container .field-label {
-  flex: 1;
+flex: 1;
 }
 
 /* your existing toggle style—make sure it still applies */
 #column-chooser .field-tree .toggle-nest {
-  display: inline-block;
-  width: 16px;
-  text-align: center;
-  cursor: pointer;
-  user-select: none;
-  color: #007BFF;
-  margin-right: 5px;
+display: inline-block;
+width: 16px;
+text-align: center;
+cursor: pointer;
+user-select: none;
+color: #007BFF;
+margin-right: 5px;
 }
 
 /* child container can be hidden/shown by your toggle logic */
 #column-chooser .field-children {
-  margin-left: 0; /* indentation now handled on label */
+margin-left: 0; /* indentation now handled on label */
 }
 .active-column-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 4px;
-  margin-left: 6px;
+display: flex;
+align-items: center;
+margin-bottom: 4px;
+margin-left: 6px;
 }
 .move-buttons button {
-  width: 16px;
-  height: 16px;
-  padding: 0;
-  margin: 0 8px 0 0;
-  cursor: pointer;
-  font-size: 8pt;
-  color: #FFFFFF;
-  border-color: #007BFF;
-  background-color: #007BFF;
-  border-width: 1px; /* Set a specific border width */
-  outline: none; /* Remove any outline */
-  box-shadow: none; /* Remove any shadow */
+width: 16px;
+height: 16px;
+padding: 0;
+margin: 0 8px 0 0;
+cursor: pointer;
+font-size: 8pt;
+color: #FFFFFF;
+border-color: #007BFF;
+background-color: #007BFF;
+border-width: 1px; /* Set a specific border width */
+outline: none; /* Remove any outline */
+box-shadow: none; /* Remove any shadow */
 }
 .move-buttons button:disabled {
-  opacity: 0.3;
-  cursor: default;
+opacity: 0.3;
+cursor: default;
 }
 
 #sql-panel button {
-  margin-top: 0.5em;
+margin-top: 0.5em;
+background-color: #007BFF;
+color: white;
+border: none;
+padding: 8px 16px;
+font-family: 'Consolas', monospace;
+font-size: 11pt;
+border-radius: 4px;
+cursor: pointer;
+}
+#sql-panel button:hover {
+background-color: #0056b3;
+}
+
+#sql-panel select {
+font-family: 'Consolas', monospace;
+font-size: 11pt;
+padding: 4px 8px;
+border-radius: 4px;
+border: 1px solid #ccc;
+}
+
+/* ── SQL modal styling ── */
+#sql-panel {
+position: fixed;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+width: 900px;
+height: 600px;
+background: white;
+border: 2px solid #ccc;
+border-radius: 10px;
+box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+z-index: 1000;
+display: flex;
+flex-direction: column;
+}
+
+.sql-header {
+padding: 20px 20px 10px 20px;
+border-bottom: 1px solid #ddd;
+flex-shrink: 0;
+}
+
+.sql-header h3 {
+margin: 0 0 10px 0;
+}
+
+.sql-controls {
+display: flex;
+align-items: center;
+gap: 10px;
+}
+
+.sql-controls label {
+font-family: 'Consolas', monospace;
+font-size: 11pt;
+}
+
+.sql-controls select {
+font-family: 'Consolas', monospace;
+font-size: 11pt;
+padding: 4px 8px;
+border-radius: 4px;
+border: 1px solid #ccc;
+}
+
+.sql-content-container {
+flex: 1;
+overflow: auto;
+padding: 0;
+margin: 10px 20px;
+border: 1px solid #ddd;
+border-radius: 4px;
+}
+
+#sql-content {
+font-size: 11pt;
+line-height: 1.4;
+margin: 0;
+padding: 15px;
+white-space: pre;
+overflow: auto;
+height: 100%;
+background-color: #f8f9fa;
+}
+
+.sql-footer {
+  padding: 15px 20px;
+  text-align: right;
+  border-top: 1px solid #ddd;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  }
+  
+  #sql-panel button {
   background-color: #007BFF;
   color: white;
   border: none;
@@ -396,38 +505,226 @@ border-color: #cccccc;
   font-size: 11pt;
   border-radius: 4px;
   cursor: pointer;
-}
-#sql-panel button:hover {
+  margin: 0;
+  }
+  
+  #sql-panel button:hover {
   background-color: #0056b3;
+  }
+  
+  #copy-sql {
+  background-color: #28a745;
+  }
+  
+  #copy-sql:hover {
+  background-color: #218838;
+  }
+
+/* Remove column button styling */
+.remove-column-btn {
+width: 18px;
+height: 18px;
+padding: 0;
+margin: 0 4px 0 0;
+cursor: pointer;
+font-size: 12pt;
+color: #FFFFFF;
+background-color: #dc3545;
+border: 1px solid #dc3545;
+border-radius: 9px;
+outline: none;
+box-shadow: none;
+display: flex;
+align-items: center;
+justify-content: center;
 }
 
-#sql-panel select {
-  font-family: 'Consolas', monospace;
-  font-size: 11pt;
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
+.remove-column-btn:hover {
+background-color: #c82333;
+border-color: #c82333;
 }
 
-/* ── SQL modal styling ── */
-#sql-panel {
-  /* don’t set display here — let .hidden handle hiding */
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 800px;
-  max-height: 500px;
-  background: white;
-  border: 2px solid #ccc;
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  padding: 20px;
-  z-index: 1000;
-  overflow: auto;
+.active-column-item {
+display: flex;
+align-items: center;
+margin-bottom: 4px;
+margin-left: 6px;
+}
+
+.move-buttons button {
+width: 16px;
+height: 16px;
+padding: 0;
+margin: 0 8px 0 0;
+cursor: pointer;
+font-size: 8pt;
+color: #FFFFFF;
+border-color: #007BFF;
+background-color: #007BFF;
+border-width: 1px;
+outline: none;
+box-shadow: none;
+}
+
+.move-buttons button:disabled {
+opacity: 0.3;
+cursor: default;
 }
 
 /* hide/show toggle */
 .hidden {
-  display: none !important;
+display: none !important;
+}
+
+/* ── Array Context Menu Styles ── */
+.array-context-menu {
+position: absolute;
+background: white;
+border: 1px solid #ccc;
+border-radius: 4px;
+box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+z-index: 1100;
+min-width: 120px;
+padding: 4px 0;
+}
+
+.array-context-menu button {
+display: block;
+width: 100%;
+padding: 8px 12px;
+border: none;
+background: none;
+text-align: left;
+cursor: pointer;
+font-size: 11pt;
+font-family: 'Consolas', 'Courier New', Courier, monospace;
+}
+
+.array-context-menu button:hover {
+background-color: #f0f0f0;
+}
+
+.array-context-menu button:active {
+background-color: #e0e0e0;
+}
+
+/* Style for structured array cells */
+td[data-is-structured-array="true"] {
+cursor: pointer;
+position: relative;
+background-color: #f0f8ff; /* Light blue tint */
+border-left: 3px solid #4caf50; /* Green left border for structured arrays */
+}
+
+td[data-is-structured-array="true"]:hover {
+background-color: #e8f5e8 !important;
+box-shadow: 0 0 4px rgba(76, 175, 80, 0.3);
+}
+
+/* Style for simple array cells that can be clicked */
+td[data-is-array="true"] {
+cursor: pointer;
+position: relative;
+background-color: #f8f9ff; /* Slight blue tint */
+border-left: 3px solid #007BFF; /* Blue left border */
+}
+
+td[data-is-array="true"]:hover {
+background-color: #e3f2fd !important;
+box-shadow: 0 0 4px rgba(0, 123, 255, 0.3);
+}
+
+td[data-is-array="true"]::after {
+content: " 🔍 Right-click for options";
+color: #666;
+font-size: 0.8em;
+opacity: 0.7;
+margin-left: 8px;
+}
+
+td[data-is-array="true"]:hover::after {
+opacity: 1;
+color: #007BFF;
+}
+
+
+.clear-path-button {
+background-color: #dc3545;
+border: none;
+color: white;
+width: 24px;
+height: 24px;
+border-radius: 12px;
+cursor: pointer;
+font-size: 14px;
+display: flex;
+align-items: center;
+justify-content: center;
+opacity: 0.8;
+}
+
+.clear-path-button:hover {
+opacity: 1;
+background-color: #c82333;
+}
+
+
+
+/* ── Enhanced Array Table Styles ── */
+.nested-table th.filterable-column {
+background-color: #e3f2fd;
+cursor: pointer;
+position: relative;
+}
+
+.nested-table th.filterable-column:hover {
+background-color: #bbdefb;
+}
+
+.nested-table th.filterable-column.filter-selected {
+background-color: #2196f3;
+color: white;
+box-shadow: 0 0 8px rgba(33, 150, 243, 0.5);
+}
+
+.nested-table td.filter-selectable {
+background-color: #fff3e0;
+cursor: pointer;
+border: 2px solid #ff9800;
+}
+
+.nested-table td.filter-selectable:hover {
+background-color: #ffe0b2;
+}
+
+.structured-array-row:nth-child(even) {
+background-color: #f8f9fa;
+}
+
+.structured-array-row:hover {
+background-color: #e8f4f8;
+}
+
+.filter-instruction {
+background-color: #4caf50;
+color: white;
+padding: 8px 12px;
+margin: 4px 0;
+border-radius: 4px;
+font-size: 12px;
+text-align: center;
+display: none;
+}
+
+
+/* Style for expandable cells */
+td[data-expandable="true"] {
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+}
+
+td[data-expandable="true"]:hover {
+  background-color: #f0f8ff !important;
+  box-shadow: inset 0 0 0 1px #007BFF;
 }

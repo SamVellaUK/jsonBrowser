@@ -1,352 +1,408 @@
-// Utils.js - Utility functions for DOM manipulation and JSON path handling
-import { applySearchHighlightsToNewContent } from './search.js';
-  
-/**
- * Creates a DOM element with attributes and properties
- * @param {string} tag - HTML tag name
- * @param {Object} attrs - Attributes to set on the element
- * @param {Object} props - Properties to set on the element
- * @returns {HTMLElement} The created element
- */
-export function createElement(tag, attrs = {}, props = {}) {
-    const el = document.createElement(tag);
-    
-    // Set attributes
-    Object.entries(attrs).forEach(([key, value]) => {
-      if (key === 'className') {
-        el.className = value;
-      } else if (key === 'dataset') {
-        Object.entries(value).forEach(([dataKey, dataValue]) => {
-          el.dataset[dataKey] = dataValue;
-        });
-      } else {
-        el.setAttribute(key, value);
-      }
-    });
-    
-    // Set properties
-    Object.entries(props).forEach(([key, value]) => {
-      el[key] = value;
-    });
-    
-    return el;
-  }
-  
-  /**
-   * Creates a table header cell
-   * @param {string} text - Text content
-   * @param {Object} attrs - Additional attributes
-   * @returns {HTMLTableCellElement} The created header cell
-   */
-  export function createHeaderCell(text, attrs = {}) {
-    return createElement('th', attrs, { textContent: text });
-  }
-  
-  /**
-   * Creates a table data cell
-   * @param {string|null} text - Text content (optional)
-   * @param {Object} attrs - Additional attributes
-   * @returns {HTMLTableCellElement} The created data cell
-   */
-  export function createCell(text = null, attrs = {}) {
-    const cell = createElement('td', attrs);
-    if (text !== null) {
-      cell.textContent = text;
-    }
-    return cell;
-  }
-  
-  /**
-   * Creates a toggle button for expandable content
-   * @param {Function} onClick - Click handler
-   * @returns {HTMLElement} The toggle button
-   */
-  export function createToggle(onClick) {
-    const toggle = createElement('span', {
-      className: 'toggle-nest',
-      style: 'cursor: pointer;'
-    }, {
-      textContent: '[+]'
-    });
-    
-    if (onClick) {
-      toggle.addEventListener('click', onClick);
-    }
-    
-    return toggle;
-  }
-  
-  /**
-   * Creates a container for nested content
-   * @param {string} parentPath - Path of parent element
-   * @param {string|number|null} rowIndex - Row index (optional)
-   * @returns {HTMLElement} The nested content container
-   */
-  export function createNestedContainer(parentPath, rowIndex = null) {
-    const attrs = {
-      className: 'nested-content',
-      style: 'display: none;',
-      dataset: { parentPath }
-    };
-    
-    if (rowIndex !== null) {
-      attrs.dataset.rowIndex = rowIndex;
-    }
-    
-    return createElement('div', attrs);
-  }
-  
-  /**
-   * Creates a container for the main table
-   * @returns {HTMLElement} The table container
-   */
-  export function createTableContainer() {
-    const root = document.getElementById('json-root');
-    const container = createElement('div', { id: 'table-container' });
-    root.appendChild(container);
-    return container;
-  }
-  
-  /**
-   * Finds a table row by index
-   * @param {number} rowIndex - The row index
-   * @returns {HTMLElement|null} The row element or null if not found
-   */
-  export function findRowByIndex(rowIndex) {
-    const table = document.getElementById('data-table');
-    if (!table) return null;
-  
-    const rows = table.querySelectorAll('tbody tr');
-    return rows[rowIndex] || null;
-  }
-  
-  /**
-   * Sets toggle state and displays nested content
-   * @param {HTMLElement} toggle - The toggle element
-   * @param {HTMLElement} nestedContent - The nested content container
-   * @param {boolean} expanded - Whether to expand or collapse
-   */
-  export function setToggleState(toggle, nestedContent, expanded) {
-    nestedContent.style.display = expanded ? 'block' : 'none';
-    toggle.textContent = expanded ? '[-]' : '[+]';
-  }
-
-  export function captureElementState(element) {
-    return {
-      scrollTop: element.scrollTop,
-      // Add other relevant state
-    };
-  }
-  
-  export function restoreElementState(element, state) {
-    if (state.scrollTop) {
-      element.scrollTop = state.scrollTop;
-    }
-    // Restore other state
-  }
-  
-  export function moveElement(source, target) {
-    // Implement efficient DOM node movement
-    target.parentNode.insertBefore(source, target);
-    target.parentNode.removeChild(target);
-  }
-
-  /**
- * Path utilities for handling JSON path expressions
- */
+// Utils.js - Enhanced with filter support for JSON arrays
 
 /**
- * Splits a JSON path into individual parts
- * Handles array notation correctly
- * @param {string} path - Path like "items.data[0].name"
- * @returns {string[]} Array of path segments
+ * Enhanced path segment parser supporting both index and filter syntax
+ */
+export function parsePathSegment(segment) {
+  if (!segment.startsWith('[') || !segment.endsWith(']')) {
+    return { type: 'key', value: segment };
+  }
+  
+  const content = segment.slice(1, -1);
+  
+  // Check if it's a filter (contains '=')
+  if (content.includes('=')) {
+    const equalIndex = content.indexOf('=');
+    const field = content.slice(0, equalIndex).trim();
+    const value = content.slice(equalIndex + 1).trim();
+    return { type: 'filter', field, value };
+  }
+  
+  // Check if it's a numeric index
+  const numIndex = parseInt(content, 10);
+  if (!isNaN(numIndex)) {
+    return { type: 'index', value: numIndex };
+  }
+  
+  // Default to treating as a key
+  return { type: 'key', value: content };
+}
+
+/**
+ * Enhanced path splitter that preserves bracket syntax
  */
 export function splitJsonPath(path) {
-    if (!path) return [];
-    
-    // Handle bracket notation for array indices
-    const parts = [];
-    let current = '';
-    let inArray = false;
-    
-    for (let i = 0; i < path.length; i++) {
-        const char = path[i];
-        
-        if (char === '[') {
-            if (current) {
-                parts.push(current);
-                current = '';
-            }
-            inArray = true;
-            current += char;
-        } else if (char === ']') {
-            current += char;
-            parts.push(current);
-            current = '';
-            inArray = false;
-        } else if (char === '.' && !inArray) {
-            if (current) {
-                parts.push(current);
-                current = '';
-            }
-        } else {
-            current += char;
-        }
-    }
-    
-    if (current) parts.push(current);
-    return parts;
-}
+  if (!path) return [];
   
-  /**
-   * Resolves a path against an object to get its value
-   * @param {Object} obj - Source object
-   * @param {string} path - Path to resolve
-   * @returns {*} Value at path or undefined if not found
-   */
-// PathUtils.js - Enhanced resolvePath function
+  const segments = [];
+  let current = '';
+  let inBrackets = false;
+  
+  for (let i = 0; i < path.length; i++) {
+    const char = path[i];
+    
+    if (char === '[') {
+      if (current) {
+        segments.push(current);
+        current = '';
+      }
+      current = '[';
+      inBrackets = true;
+    } else if (char === ']' && inBrackets) {
+      current += ']';
+      segments.push(current);
+      current = '';
+      inBrackets = false;
+    } else if (char === '.' && !inBrackets) {
+      if (current) {
+        segments.push(current);
+        current = '';
+      }
+    } else {
+      current += char;
+    }
+  }
+  
+  if (current) {
+    segments.push(current);
+  }
+  
+  return segments.filter(s => s.length > 0);
+}
+
+/**
+ * Enhanced path resolver supporting filters
+ */
 export function resolvePath(obj, path) {
-    if (!obj || !path) return undefined;
+  if (!path || obj == null) return obj;
+  
+  const segments = splitJsonPath(path);
+  let current = obj;
+  
+  for (const segment of segments) {
+    if (current == null) return undefined;
     
-    const parts = splitJsonPath(path);
-    let current = obj;
+    const parsed = parsePathSegment(segment);
     
-    for (const part of parts) {
-        if (current === null || typeof current !== 'object') {
-            return undefined;
-        }
-        
-        // Handle array indices
-        if (part.startsWith('[') && part.endsWith(']')) {
-            const index = part.slice(1, -1);
-            if (!Array.isArray(current)) return undefined;
-            current = current[parseInt(index, 10)];
-            continue;
-        }
-        
-        // Handle regular properties
-        if (part in current) {
-            current = current[part];
-        } else {
-            return undefined;
-        }
+    switch (parsed.type) {
+      case 'key':
+        current = current[parsed.value];
+        break;
+      case 'index':
+        current = expandByIndex(current, parsed.value);
+        break;
+      case 'filter':
+        current = expandByFilter(current, parsed.field, parsed.value);
+        break;
+      default:
+        return undefined;
     }
-    
-    return current;
+  }
+  
+  return current;
 }
-  
-  /**
-   * Builds a path string by joining path parts
-   * @param {string[]} parts - Path parts to join
-   * @returns {string} Joined path
-   */
-  export function buildPath(parts) {
-    if (!parts || !parts.length) return '';
-    
-    return parts.reduce((path, part, index) => {
-      // Don't add a dot before the first part
-      if (index === 0) return part;
-      
-      // Handle array syntax
-      if (part.includes('[')) {
-        // If it's a plain array index like "[0]"
-        if (part.startsWith('[')) {
-          return `${path}${part}`;
-        }
-        // Otherwise it's a property with array access like "items[0]"
-        return `${path}.${part}`;
-      }
-      
-      return `${path}.${part}`;
-    }, '');
-  }
-  
-  /**
-   * Parses an array access path like "items[0]" into its components
-   * @param {string} pathPart - Path part to parse
-   * @returns {Object|null} Object with key and index, or null if invalid format
-   */
-  export function parseArrayPath(pathPart) {
-    // Handle direct array access like "[0]"
-    if (pathPart.startsWith('[') && pathPart.endsWith(']')) {
-      const index = pathPart.slice(1, -1);
-      return {
-        key: '', // Empty key for direct array access
-        index: index ? parseInt(index, 10) : null
-      };
-    }
-  
-    // Handle property with array access like "items[0]"
-    const match = pathPart.match(/^(\w+)(?:\[(\d+)\])?$/);
-    if (!match) return null;
-    
-    const [, key, index] = match;
-    return {
-      key,
-      index: index ? parseInt(index, 10) : null
-    };
-  }
 
+/**
+ * Array expansion by index
+ */
+export function expandByIndex(arr, idx) {
+  if (!Array.isArray(arr) || idx < 0 || idx >= arr.length) {
+    return undefined;
+  }
+  return arr[idx];
+}
 
-  export function applyColumnState(options = {}) {
-    const scrollTop = captureScrollTop();
-    const table = document.getElementById('data-table');
-    if (!table) return;
-    
-    // Diff header
-    const thead = table.querySelector('thead');
-    if (thead) {
-      diffHeader(thead);
+/**
+ * Array expansion by field filter
+ */
+export function expandByFilter(arr, field, value) {
+  if (!Array.isArray(arr)) return undefined;
+  
+  return arr.find(item => {
+    if (!item || typeof item !== 'object') return false;
+    return String(item[field]) === String(value);
+  });
+}
+
+/**
+ * Enhanced nested path expansion
+ */
+export function expandNestedPath(obj, path) {
+  return resolvePath(obj, path);
+}
+
+// DOM utility functions
+export function createElement(tag, attrs = {}, props = {}) {
+  const el = document.createElement(tag);
+  
+  // Set attributes
+  if (attrs.id) el.id = attrs.id;
+  if (attrs.className) el.className = attrs.className;
+  if (attrs.dataset) {
+    for (const [key, value] of Object.entries(attrs.dataset)) {
+      el.dataset[key] = value;
     }
-    
-    // Diff rows
-    const tbody = table.querySelector('tbody');
-    if (tbody) {
-      const newCells = [];
-      Array.from(tbody.querySelectorAll('tr')).forEach(row => {
-        newCells.push(...diffRowCells(row));
-      });
-      
-      // Apply highlights to new cells
-      if (newCells.length > 0) {
-        applySearchHighlightsToNewContent();
+  }
+  
+  // Set properties
+  for (const [key, value] of Object.entries(props)) {
+    el[key] = value;
+  }
+  
+  return el;
+}
+
+export function createCell(content = null, attrs = {}) {
+  const td = createElement('td', attrs);
+  if (content !== null) {
+    td.textContent = content;
+  }
+  return td;
+}
+
+export function createHeaderCell(content, attrs = {}) {
+  const th = createElement('th', attrs);
+  th.textContent = content;
+  return th;
+}
+
+export function createToggle() {
+  const toggle = createElement('span', { className: 'toggle-nest' });
+  toggle.textContent = '[+]';
+  return toggle;
+}
+
+export function createNestedContainer(path, rowIndex) {
+  return createElement('div', {
+    className: 'nested-content',
+    dataset: { parentPath: path, rowIndex: String(rowIndex) }
+  });
+}
+
+export function createTableContainer() {
+  const container = createElement('div', { id: 'table-container' });
+  const root = document.getElementById('json-root');
+  if (root) {
+    root.appendChild(container);
+  } else {
+    document.body.appendChild(container);
+  }
+  return container;
+}
+
+export function setToggleState(toggle, nested, expanded) {
+  if (expanded) {
+    toggle.textContent = '[-]';
+    nested.style.display = 'block';
+  } else {
+    toggle.textContent = '[+]';
+    nested.style.display = 'none';
+  }
+}
+
+// Additional utility functions that might have been in the original Utils.js
+
+/**
+ * Deep clone an object
+ */
+export function deepClone(obj) {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return new Date(obj.getTime());
+  if (obj instanceof Array) return obj.map(item => deepClone(item));
+  if (typeof obj === 'object') {
+    const cloned = {};
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        cloned[key] = deepClone(obj[key]);
       }
     }
-    
-    if (!options.destructive) {
-      restoreScrollTop(scrollTop);
-    }
+    return cloned;
   }
-  
-  function captureScrollTop() {
-    return document.getElementById('table-container')?.scrollTop || 0;
+}
+
+/**
+ * Check if a value is empty (null, undefined, empty string, empty array, empty object)
+ */
+export function isEmpty(value) {
+  if (value == null) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  if (Array.isArray(value)) return value.length === 0;
+  if (typeof value === 'object') return Object.keys(value).length === 0;
+  return false;
+}
+
+/**
+ * Safely get nested property value
+ */
+export function safeGet(obj, path, defaultValue = undefined) {
+  try {
+    return resolvePath(obj, path) ?? defaultValue;
+  } catch {
+    return defaultValue;
   }
-  
-  function restoreScrollTop(scrollTop) {
-    const container = document.getElementById('table-container');
-    if (container) {
-      container.scrollTop = scrollTop;
-    }
-  }
-  
-  function diffHeader(thead) {
-    // Implement header diff logic
-    // ...
-  }
-  
-  function diffRowCells(row) {
-    const newCells = [];
-    // Implement row cell diff logic
-    // ...
-    return newCells;
-  }
-  
-  function createAttributeContract(element) {
-    // Ensure all required data attributes are present
-    return {
-      path: element.getAttribute('data-path'),
-      columnPath: element.getAttribute('data-column-path'),
-      rowIdx: element.getAttribute('data-row-idx'),
-      toggle: element.getAttribute('data-toggle')
+}
+
+/**
+ * Format a value for display
+ */
+export function formatValue(value) {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return value.toString();
+  if (typeof value === 'boolean') return value.toString();
+  if (Array.isArray(value)) return `Array(${value.length})`;
+  if (typeof value === 'object') return `Object(${Object.keys(value).length} keys)`;
+  return String(value);
+}
+
+/**
+ * Get the data type of a value
+ */
+export function getDataType(value) {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (Array.isArray(value)) return 'array';
+  return typeof value;
+}
+
+/**
+ * Escape HTML characters
+ */
+export function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/**
+ * Debounce function calls
+ */
+export function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
     };
-  }
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+/**
+ * Throttle function calls
+ */
+export function throttle(func, limit) {
+  let inThrottle;
+  return function() {
+    const args = arguments;
+    const context = this;
+    if (!inThrottle) {
+      func.apply(context, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  };
+}
+
+/**
+ * Generate a unique ID
+ */
+export function generateId() {
+  return Math.random().toString(36).substr(2, 9);
+}
+
+/**
+ * Check if an element is visible in the viewport
+ */
+export function isElementVisible(element) {
+  const rect = element.getBoundingClientRect();
+  return (
+    rect.top >= 0 &&
+    rect.left >= 0 &&
+    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+    rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+  );
+}
+
+/**
+ * Scroll element into view smoothly
+ */
+export function scrollIntoView(element, options = {}) {
+  element.scrollIntoView({
+    behavior: 'smooth',
+    block: 'nearest',
+    inline: 'nearest',
+    ...options
+  });
+}
+
+/**
+ * Get all text content from an element, including nested elements
+ */
+export function getTextContent(element) {
+  return element.textContent || element.innerText || '';
+}
+
+/**
+ * Find the closest parent element matching a selector
+ */
+export function findClosest(element, selector) {
+  return element.closest ? element.closest(selector) : null;
+}
+
+/**
+ * Add event listener with cleanup
+ */
+export function addEventListenerWithCleanup(element, event, handler, options = {}) {
+  element.addEventListener(event, handler, options);
+  return () => element.removeEventListener(event, handler, options);
+}
+
+/**
+ * Create a promise that resolves after a delay
+ */
+export function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Convert array to object using a key function
+ */
+export function arrayToObject(array, keyFn) {
+  return array.reduce((obj, item) => {
+    const key = keyFn(item);
+    obj[key] = item;
+    return obj;
+  }, {});
+}
+
+/**
+ * Group array items by a key function
+ */
+export function groupBy(array, keyFn) {
+  return array.reduce((groups, item) => {
+    const key = keyFn(item);
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(item);
+    return groups;
+  }, {});
+}
+
+/**
+ * Remove duplicates from array
+ */
+export function uniqueArray(array, keyFn = item => item) {
+  const seen = new Set();
+  return array.filter(item => {
+    const key = keyFn(item);
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
