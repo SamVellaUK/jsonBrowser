@@ -28,6 +28,9 @@ Each version includes:
 | 5.0     | Render deeply nested JSON structures with collapsible toggles using vanilla JS | ✅ Complete | [Version 5 Plan](version_5.md) |
 | 6.0     | Add global expand/collapse controls and JSON path display toggle | ✅ Complete | [Version 6 Plan](version_6.md) |
 | 7.0     | Promote deeply nested JSON fields to top-level columns (flattening) | ✅ Complete | [Version 7 Plan](version_7.md) |
+| 8.0     | Add column chooser overlay for show/hide, promote, and reorder columns | ✅ Complete | [Version 8 Plan](version_8.md) |
+| 9.0     | Add full table search functionality (including nested JSON) | ⬜ Planned | [Version 9 Plan](version_9.md) |
+
 
 
 ## 🗃️ Feature Backlog
