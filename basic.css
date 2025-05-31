@@ -12,7 +12,7 @@ body {
   margin: 0; 
   padding: 20px;
   background: #f8f9fa;
-  overflow: hidden; 
+  /* overflow: hidden;  REMOVED FOR ACCESSIBILITY */
 }
 
 /* =============================================
@@ -76,6 +76,7 @@ body {
 .search-box:focus {
   outline: none;
   border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Enhanced glow for search box */
 }
 
 /* General Button Styling */
@@ -118,7 +119,7 @@ body {
 }
 
 .hidden-indicator {
-  color: #dc3545;
+  color: #c82333; /* Darker red for better contrast (AA compliant 5.15:1 on #fff) */
   font-size: 11px;
   margin-left: 8px;
 }
@@ -281,7 +282,7 @@ th.drag-over {
   width: 20px;
   text-align: center;
   font-weight: bold;
-  color: #007bff;
+  color: #004085; /* Darker blue for better contrast (e.g., 5.7:1 on #fff3e0) */
   margin-right: 8px;
 }
 
@@ -466,4 +467,49 @@ th.drag-over {
 #json-modal-content.drag-over-active { /* If dropping on modal content */
     outline: 2px dashed #007bff;
     outline-offset: -10px; /* Adjust as needed */
+}
+
+/* =============================================
+   Focus Styles (Accessibility)
+   ============================================= */
+
+/* General Focus Styles for Interactive Elements */
+.controls button:focus, 
+.search-nav button:focus,
+.remove-col-btn-header:focus,
+.promote-btn:focus,
+.close-btn:focus,
+.expandable[role="button"]:focus, /* For clickable expand/collapse areas */
+th[role="button"]:focus, /* For sortable table headers */
+.modal-footer button:focus, /* Buttons in modal footer */
+.modal-header select:focus, /* Select in modal header */
+.promote-popover-btn:focus, /* Buttons in promote popover */
+button:focus, /* A general fallback for other buttons if needed */
+select:focus /* For the dialect select */
+ {
+  outline: 2px solid #0056b3; /* A distinct blue, adjust color as needed */
+  outline-offset: 1px;         /* Small offset so outline doesn't overlap element too much */
+  box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.3); /* Optional: softer glow */
+}
+
+/* Input file button styling when hidden input is focused (for keyboard users) */
+input[type="file"]:focus + button {
+  outline: 2px solid #0056b3;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.3);
+}
+
+
+/* Ensure textarea focus is also clear */
+.sql-output:focus,
+.json-edit-output:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+  outline: none; /* If using box-shadow for focus, outline might be redundant */
+}
+
+/* For popover buttons - specific style if needed to override general button:focus */
+.promote-popover-btn:focus {
+  /* General style above should cover, but can add specific overrides here */
+  background-color: #e9ecef; /* Add a background change for better visibility */
 }

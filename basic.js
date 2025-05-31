@@ -61,6 +61,64 @@ const createReactiveState = (initial) => {
     showPromoteKeyPopover: false, 
     promoteKeyPopoverContext: null, 
   });
+
+// Focus Management
+let previouslyFocusedElement = null;
+
+function openModalFocus(modalElementQuerySelector) {
+    previouslyFocusedElement = document.activeElement;
+    // Ensure render is complete before focusing
+    requestAnimationFrame(() => {
+        const modal = document.querySelector(modalElementQuerySelector);
+        if (modal) {
+            const firstFocusableElement = modal.querySelector(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            if (firstFocusableElement) {
+                firstFocusableElement.focus();
+            }
+            // Add focus trap event listener
+            modal.addEventListener('keydown', trapFocusInModal);
+        }
+    });
+}
+
+function closeModalFocus(modalElementQuerySelector) {
+    const modal = document.querySelector(modalElementQuerySelector);
+    if (modal) {
+        modal.removeEventListener('keydown', trapFocusInModal);
+    }
+    if (previouslyFocusedElement) {
+        previouslyFocusedElement.focus();
+        previouslyFocusedElement = null;
+    }
+}
+
+function trapFocusInModal(e) {
+    if (e.key !== 'Tab') return;
+
+    const modal = e.currentTarget; // The modal element itself
+    const focusableElements = Array.from(
+        modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    ).filter(el => el.offsetParent !== null && !el.disabled); // Filter for visible and non-disabled elements
+
+    if (focusableElements.length === 0) return;
+
+    const firstFocusableElement = focusableElements[0];
+    const lastFocusableElement = focusableElements[focusableElements.length - 1];
+
+    if (e.shiftKey) { // Shift + Tab
+        if (document.activeElement === firstFocusableElement) {
+            lastFocusableElement.focus();
+            e.preventDefault();
+        }
+    } else { // Tab
+        if (document.activeElement === lastFocusableElement) {
+            firstFocusableElement.focus();
+            e.preventDefault();
+        }
+    }
+}
   
   // Utility functions
 const escapeStringForDataAttribute = (str) => {
@@ -96,6 +154,31 @@ const escapeStringForDataAttribute = (str) => {
     }
     
     return result;
+  };
+
+  const getAllObjectPaths = (obj, currentPath = '', allPaths = []) => {
+    if (obj && typeof obj === 'object') {
+        // Only add the path if it's not the initial empty path (for the root object itself).
+        // We are interested in paths *within* the rowData that can be expanded.
+        if (currentPath) {
+            allPaths.push(currentPath);
+        }
+
+        if (Array.isArray(obj)) {
+            obj.forEach((item, index) => {
+                const newPath = currentPath ? `${currentPath}[${index}]` : `[${index}]`;
+                getAllObjectPaths(item, newPath, allPaths);
+            });
+        } else {
+            for (const key in obj) {
+                if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                    const newPath = currentPath ? `${currentPath}.${key}` : key;
+                    getAllObjectPaths(obj[key], newPath, allPaths);
+                }
+            }
+        }
+    }
+    return allPaths;
   };
   
   const getValue = (obj, path) => {
@@ -230,6 +313,7 @@ const escapeStringForDataAttribute = (str) => {
     return `
       <div class="header">
         <input 
+          aria-label="Search JSON content"
           id="json-browser-search-box" 
           type="text" 
           class="search-box" 
@@ -238,8 +322,8 @@ const escapeStringForDataAttribute = (str) => {
           data-action="search"
         >
         <div class="search-nav">
-          <button data-action="search-prev" ${state.searchResults.length === 0 ? 'disabled' : ''}>←</button>
-          <button data-action="search-next" ${state.searchResults.length === 0 ? 'disabled' : ''}>→</button>
+          <button aria-label="Previous search result" data-action="search-prev" ${state.searchResults.length === 0 ? 'disabled' : ''}>←</button>
+          <button aria-label="Next search result" data-action="search-next" ${state.searchResults.length === 0 ? 'disabled' : ''}>→</button>
         </div>
         <div class="controls">
           <button data-action="expand-all">Expand All</button>
@@ -253,7 +337,7 @@ const escapeStringForDataAttribute = (str) => {
           <button data-action="show-sql">SQL</button>
           <button data-action="show-json">View/Edit Data</button>
         </div>
-        <div class="search-info">
+        <div class="search-info" role="status" aria-live="polite" aria-atomic="true">
           ${state.searchResults.length > 0 
             ? `${state.currentSearchIndex + 1} of ${state.searchResults.length}${hiddenCount > 0 ? `<span class="hidden-indicator">(${hiddenCount} hidden)</span>` : ''}` 
             : state.searchQuery && state.searchResults.length === 0 ? 'No matches' : `${state.data.length} rows`}
@@ -277,18 +361,29 @@ const escapeStringForDataAttribute = (str) => {
     let cellContent = '';
     
     const currentResult = state.searchResults[state.currentSearchIndex];
-    const isCurrentMatchInCell = currentResult && 
-      currentResult.rowIndex === rowIndex && 
+    const isCurrentMatchInCell = currentResult &&
+      currentResult.rowIndex === rowIndex &&
       currentResult.path === path;
+
+    // Generate a unique ID for aria-controls
+    const nestedContentId = `nested-content-${rowIndex}-${path.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
   
     if (isExpandable) {
       const nestedDivContent = isExpanded ? renderNestedObject(value, path, rowIndex) : '';
       cellContent = `
-        <div class="expandable" data-action="toggle" data-path="${escapeStringForDataAttribute(path)}" data-row="${rowIndex}">
-          <span class="toggle">${isExpanded ? '−' : '+'}</span>
+        <div 
+          class="expandable" 
+          data-action="toggle" 
+          data-path="${escapeStringForDataAttribute(path)}" 
+          data-row="${rowIndex}"
+          role="button"
+          tabindex="0"
+          aria-expanded="${isExpanded ? 'true' : 'false'}"
+          aria-controls="${nestedContentId}">
+          <span class="toggle" aria-hidden="true">${isExpanded ? '−' : '+'}</span>
           ${highlightText(displayValue, state.searchQuery, isCurrentMatchInCell && !isExpanded)}
         </div>
-        <div class="nested ${isExpanded ? 'expanded' : ''}" data-parent-path="${escapeStringForDataAttribute(path)}" data-row-index-for-nested="${rowIndex}">
+        <div class="nested ${isExpanded ? 'expanded' : ''}" id="${nestedContentId}" data-parent-path="${escapeStringForDataAttribute(path)}" data-row-index-for-nested="${rowIndex}">
           ${nestedDivContent}
         </div>
       `;
@@ -302,6 +397,7 @@ const escapeStringForDataAttribute = (str) => {
             data-action="promote-value" 
             data-path-to-value="${escapeStringForDataAttribute(path)}" 
             data-row-index="${rowIndex}"
+            aria-label="Promote '${escapeStringForDataAttribute(path)}' to column"
             title="Promote '${escapeStringForDataAttribute(path)}' to column"
           >+</button>`;
       }
@@ -332,6 +428,7 @@ const escapeStringForDataAttribute = (str) => {
             data-action="promote-value" 
             data-path-to-value="${escapeStringForDataAttribute(basePath)}" 
             data-row-index="${rowIndex}"
+            aria-label="Promote '${escapeStringForDataAttribute(basePath)}' to column"
             title="Promote '${escapeStringForDataAttribute(basePath)}' to column"
           >+</button>`;
       }
@@ -437,7 +534,7 @@ const escapeStringForDataAttribute = (str) => {
   
   const renderTable = () => {
     if (state.data.length === 0 && !state.showJsonModal) { // Don't show "No data" if modal is open for input
-      return '<div class="no-results">No data available. Click "View/Edit Data" to load or paste data.</div>';
+      return '<div class="no-results" role="status" aria-live="polite">No data available. Click "View/Edit Data" to load or paste data.</div>';
     }
     if (state.data.length === 0 && state.showJsonModal) {
         return ''; // Don't render table if modal is open and data is empty
@@ -476,17 +573,21 @@ const escapeStringForDataAttribute = (str) => {
                       <button 
                           class="remove-col-btn-header" 
                           data-action="remove-column-header" 
-                          data-column="${encodeURIComponent(col)}" 
+                          data-column="${encodeURIComponent(col)}"
+                          aria-label="Remove column '${escapeStringForDataAttribute(col)}'" 
                           title="Remove column '${escapeStringForDataAttribute(col)}'" 
                       >−</button>`;
                 }
                 return `
                 <th 
+                  role="button"
+                  tabindex="0"
                   data-action="sort" 
                   data-column="${encodeURIComponent(col)}" 
                   class="${state.sortBy === col ? `sorted ${state.sortDirection}` : ''} ${col.toLowerCase() === 'id' ? 'col-id' : ''}"
                   ${draggableAttribute}
                   style="${thStyles}"
+                  aria-sort="${state.sortBy === col ? (state.sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}"
                 >
                   <div>
                     ${col}
@@ -517,17 +618,17 @@ const escapeStringForDataAttribute = (str) => {
   const renderSqlModal = () => {
     if (!state.showSqlModal) return '';
     return `
-      <div class="modal">
-        <div class="modal-content" style="width: 900px;">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sql-modal-title">
+        <div id="sql-modal-content-wrapper" class="modal-content" style="width: 900px;">
           <div class="modal-header">
-            <h3>Generated SQL</h3>
+            <h3 id="sql-modal-title">Generated SQL</h3>
             <div>
               <select data-action="change-dialect" style="margin-right: 10px;">
                 <option value="snowflake" ${state.sqlDialect === 'snowflake' ? 'selected' : ''}>Snowflake</option>
                 <option value="postgresql" ${state.sqlDialect === 'postgresql' ? 'selected' : ''}>PostgreSQL</option>
               </select>
               <button data-action="copy-sql" style="margin-right: 10px;">Copy</button>
-              <button class="close-btn" data-action="close-sql">×</button>
+              <button class="close-btn" data-action="close-sql" aria-label="Close SQL modal">×</button>
             </div>
           </div>
           <textarea class="sql-output" readonly>${generateSQL(state.visibleColumns, state.sqlDialect)}</textarea>
@@ -539,15 +640,16 @@ const escapeStringForDataAttribute = (str) => {
   const renderJsonModal = () => {
     if (!state.showJsonModal) return '';
     return `
-      <div class="modal">
-        <div class="modal-content" style="width: 900px; height: 80vh; display: flex; flex-direction: column;">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="json-modal-title">
+        <div id="json-modal-content" class="modal-content" style="width: 900px; height: 80vh; display: flex; flex-direction: column;">
           <div class="modal-header">
-            <h3>Raw Data (JSON, CSV, TSV)</h3>
-            <button class="close-btn" data-action="close-json">×</button>
+            <h3 id="json-modal-title">Raw Data (JSON, CSV, TSV)</h3>
+            <button class="close-btn" data-action="close-json" aria-label="Close raw data modal">×</button>
           </div>
           <textarea 
               id="json-edit-area" 
               class="json-edit-output" 
+              aria-label="Raw JSON, CSV, or TSV editor"
               style="flex-grow: 1; width: 100%; resize: none; margin-bottom: 10px; font-family: 'Consolas', monospace;"
               placeholder="Paste JSON, CSV, or TSV data here, or load from file."
           >${state.rawJsonEditContent}</textarea>
@@ -564,7 +666,7 @@ const escapeStringForDataAttribute = (str) => {
                 <button data-action="apply-json-changes" style="margin-left: 10px; background-color: #28a745; color:white; border:none; padding: 8px 12px; border-radius:4px; cursor:pointer;">Apply & Close</button>
             </div>
           </div>
-           <span class="json-validation-status" style="font-size: 12px; min-height: 1.2em; margin-top: 5px; text-align: right;">${state.jsonValidationMessage}</span>
+           <span class="json-validation-status" role="status" aria-live="polite" aria-atomic="true" style="font-size: 12px; min-height: 1.2em; margin-top: 5px; text-align: right;">${state.jsonValidationMessage}</span>
         </div>
       </div>
     `;
@@ -753,9 +855,9 @@ function handleThDragEnd(e) {
 
 if (state.showJsonModal) {
     const jsonEditArea = document.getElementById('json-edit-area');
-    // ... (existing code for jsonEditArea value and selection) ...
-
-    const modalContentTarget = document.getElementById('json-modal-content') || jsonEditArea; // Prefer modal content or fallback to textarea
+    // Prefer modal content or fallback to textarea. Use the wrapper if available.
+    const modalContentElement = document.getElementById('json-modal-content'); 
+    const modalContentTarget = modalContentElement || jsonEditArea;
     
     if (modalContentTarget && !modalContentTarget.dataset.dndListenersAttached) {
         modalContentTarget.dataset.dndListenersAttached = 'true';
@@ -836,7 +938,7 @@ if (state.showJsonModal) {
   
     if (activeElementId) {
         const newActiveElement = document.getElementById(activeElementId);
-        if (newActiveElement) {
+        if (newActiveElement && document.activeElement !== newActiveElement) { // Avoid re-focusing if already focused
             newActiveElement.focus();
             if ((activeElementId === 'json-browser-search-box' || activeElementId === 'json-edit-area') && 
                 selectionStart !== undefined && selectionEnd !== undefined) {
@@ -864,6 +966,7 @@ if (state.showJsonModal) {
   const handleKeyboard = (e) => {
     const searchBoxFocused = e.target.matches('.search-box') || e.target.id === 'json-browser-search-box';
     const jsonEditAreaFocused = e.target.id === 'json-edit-area';
+    const inModal = e.target.closest('.modal');
   
     if (searchBoxFocused) {
       if (e.key === 'Enter') {
@@ -895,16 +998,29 @@ if (state.showJsonModal) {
     
     if (e.key === 'Escape') {
         if (state.showPromoteKeyPopover) {
+            e.preventDefault();
             state.showPromoteKeyPopover = false;
             state.promoteKeyPopoverContext = null;
-        } else if (state.showSqlModal) {
+        } else if (state.showSqlModal && inModal) {
+            e.preventDefault();
+            closeModalFocus('.modal[aria-labelledby="sql-modal-title"]');
             state.showSqlModal = false;
-        } else if (state.showJsonModal && !jsonEditAreaFocused) { // Allow Esc in textarea
+        } else if (state.showJsonModal && inModal && !jsonEditAreaFocused) { // Allow Esc in textarea
+            e.preventDefault();
+            closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
             state.showJsonModal = false;
             state.jsonValidationMessage = '';
-        } else if (state.editModeActive && !searchBoxFocused && !jsonEditAreaFocused) { 
+        } else if (state.editModeActive && !searchBoxFocused && !jsonEditAreaFocused && !inModal) { 
+            e.preventDefault();
             state.editModeActive = false;
         }
+    }
+
+    // Keyboard interaction for expand/collapse and sortable headers
+    if ((e.key === 'Enter' || e.key === ' ') && 
+        (e.target.matches('.expandable[role="button"]') || e.target.matches('th[role="button"]'))) {
+        e.preventDefault();
+        e.target.click(); // Simulate a click to trigger the existing action
     }
   };
 
@@ -1121,7 +1237,22 @@ const init = async () => {
       }
       
       state.subscribe((changedKey) => {
+          const wasSqlModalVisible = !!document.querySelector('.modal[aria-labelledby="sql-modal-title"]');
+          const wasJsonModalVisible = !!document.querySelector('.modal[aria-labelledby="json-modal-title"]');
+
           render();
+
+          // Handle opening modals and setting focus
+          if (state.showSqlModal && !wasSqlModalVisible) {
+              openModalFocus('.modal[aria-labelledby="sql-modal-title"]');
+          }
+          if (state.showJsonModal && !wasJsonModalVisible) {
+              // Check if the active element is already inside the json modal (e.g., textarea from drag/drop)
+              const jsonModal = document.querySelector('.modal[aria-labelledby="json-modal-title"]');
+              if (!jsonModal || !jsonModal.contains(document.activeElement)) {
+                openModalFocus('.modal[aria-labelledby="json-modal-title"]');
+              }
+          }
       }); 
       
       document.addEventListener('click', handleEvent);
@@ -1247,12 +1378,9 @@ const init = async () => {
         
       case 'expand-all':
         state.data.forEach((rowData, rowIndex) => {
-          const flattened = flatten(rowData);
-          flattened.forEach(({ path: itemPath }) => { 
-            const value = getValue(rowData, itemPath);
-            if (value && typeof value === 'object') {
-              state.expandedPaths.add(`${rowIndex}-${itemPath}`);
-            }
+          const expandablePaths = getAllObjectPaths(rowData); // Get all paths to objects/arrays
+          expandablePaths.forEach(itemPath => {
+            state.expandedPaths.add(`${rowIndex}-${itemPath}`);
           });
         });
         state.notify('expandedPaths');
@@ -1405,6 +1533,7 @@ const init = async () => {
         break;
         
       case 'close-sql':
+        closeModalFocus('.modal[aria-labelledby="sql-modal-title"]');
         state.showSqlModal = false;
         break;
         
@@ -1437,6 +1566,7 @@ const init = async () => {
         break;
         
       case 'close-json':
+        closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
         state.showJsonModal = false;
         state.jsonValidationMessage = ''; 
         break;
@@ -1538,6 +1668,7 @@ const init = async () => {
 
             if (parsedData !== null) {
                 state.data = parsedData;
+                closeModalFocus('.modal[aria-labelledby="json-modal-title"]'); // Close focus before state change
                 state.showJsonModal = false;
                 state.jsonValidationMessage = '';
 
