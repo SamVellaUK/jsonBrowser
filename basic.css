@@ -12,7 +12,6 @@ body {
   margin: 0; 
   padding: 20px;
   background: #f8f9fa;
-  /* overflow: hidden;  REMOVED FOR ACCESSIBILITY */
 }
 
 /* =============================================
@@ -24,26 +23,63 @@ body {
   position: sticky; 
   top: 0;
   background: #fff;
-  padding: 15px;
+  padding: 10px 15px; /* Adjusted padding */
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   margin-bottom: 20px;
   display: flex;
-  gap: 15px;
-  align-items: center;
-  flex-wrap: wrap;
+  gap: 15px; /* Space between groups */
+  align-items: center; 
+  flex-wrap: wrap; /* Allow groups to wrap */
   z-index: 200; 
 }
+
+/* Header Control Groups */
+.search-group,
+.view-controls-group,
+.function-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Space between items within a group */
+  flex-wrap: nowrap; 
+}
+
+.search-group {
+  flex-grow: 1; /* Allow search group to take more space */
+  min-width: 280px; /* Minimum width for search group */
+}
+
+/* Responsive adjustments for header groups */
+@media (max-width: 1250px) { /* Breakpoint where groups might start to feel crowded */
+  .search-group,
+  .view-controls-group,
+  .function-controls-group {
+    flex-wrap: wrap; /* Allow buttons to wrap within groups */
+  }
+}
+@media (max-width: 768px) { /* More aggressive stacking for smaller screens */
+    .header {
+        /* flex-direction: column; /* Uncomment to stack groups vertically */
+        /* align-items: stretch;   /* Uncomment for full-width groups when stacked */
+    }
+    .search-info {
+        margin-left: 0; /* Reset margin for stacked layout */
+        width: 100%;    /* Take full width in stacked layout */
+        text-align: left; /* Or center, as preferred */
+        padding-top: 10px;
+    }
+}
+
 
 /* Scrollable viewport for the main table */
 .json-table { 
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  max-height: calc(100vh - 140px); 
+  max-height: calc(100vh - 120px); /* Adjusted based on typical header height */
   overflow-y: auto; 
-  overflow-x: auto; /* <<<< THIS IS KEY */
-  width: 100%;      /* Take up available width of its parent */
+  overflow-x: auto; 
+  width: 100%;      
 }
 
 /* Modal Container */
@@ -61,82 +97,194 @@ body {
 }
 
 /* =============================================
-   Interactive Elements (General)
+   Interactive Elements (Header Specific)
    ============================================= */
 
+/* Generic Button Base Style for Header */
+.header button {
+  padding: 7px 12px; /* Slightly adjusted padding */
+  margin: 0; 
+  border: 1px solid transparent;
+  border-radius: 5px; /* Slightly smaller radius */
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  white-space: nowrap; 
+  line-height: 1.5; /* Ensure text is vertically centered well */
+}
+
+.header button:disabled {
+  background-color: #adb5bd !important; /* More distinct disabled color */
+  border-color: #adb5bd !important;
+  color: #f8f9fa !important;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+/* Search Group Styles */
 .search-box {
-  flex: 1;
-  min-width: 200px;
+  flex-grow: 1; 
+  min-width: 150px; /* Reduced min-width to allow more flexibility */
   padding: 8px 12px;
-  border: 2px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
+  border: 2px solid #ced4da; /* Softer border */
+  border-radius: 5px;
+  font-size: 13px; /* Slightly smaller font */
 }
 
 .search-box:focus {
   outline: none;
+  border-color: #80bdff; /* Standard Bootstrap focus blue */
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); 
+}
+
+.search-button { /* Dedicated Search Button */
+  background-color: #007bff; /* Primary blue */
   border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Enhanced glow for search box */
+}
+.search-button:hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
 }
 
-/* General Button Styling */
-.controls button, .search-nav button {
-  padding: 8px 16px;
-  margin: 0 4px;
-  border: none;
-  border-radius: 6px;
-  background: #007bff;
-  color: white;
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.controls button:hover, .search-nav button:hover {
-  background: #0056b3;
-}
-
-.controls button.active {
-  background: #28a745;
-}
-
-/* Search Navigation Buttons (Prev/Next) */
-.search-nav button {
-  width: 32px;
-  height: 32px;
+.search-nav button { /* Prev/Next */
+  background-color: #6c757d; /* Grey */
+  border-color: #6c757d;
+  width: 30px; /* Adjusted size */
+  height: 30px; 
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.search-nav button:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
 }
 
-.search-nav button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+/* Header Control Groups */
+.search-group,
+.view-controls-group,
+.function-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Space between items within a group */
+  flex-wrap: nowrap; 
+}
+
+/* NEW or MODIFIED if .search-nav was implicitly styled */
+.search-nav {
+  display: flex; /* Lays out its children (the buttons) in a row */
+  align-items: center; /* Vertically aligns the buttons if their heights differed */
+  gap: 4px; /* Adds a small 4px gap between the previous and next buttons */
+}
+
+.search-group {
+  flex-grow: 1; 
+  min-width: 280px; 
+}
+
+.search-nav button { /* Prev/Next */
+  background-color: #6c757d; /* Grey */
+  border-color: #6c757d;
+  width: 30px; 
+  height: 30px; 
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.search-nav button:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
+}
+
+/* View Controls Group Styles (e.g., for layout, display options) */
+.view-controls-group button {
+  background-color: #17a2b8; /* Teal/Info */
+  border-color: #17a2b8;
+}
+.view-controls-group button:hover {
+  background-color: #117a8b;
+  border-color: #10707f;
+}
+.view-controls-group button.active {
+  background-color: #138496; 
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+}
+
+
+/* Function Controls Group Styles (e.g., for actions, data manipulation) */
+.function-controls-group button {
+  background-color: #6f42c1; /* Purple - for general functions */
+  border-color: #6f42c1;
+}
+.function-controls-group button:hover {
+  background-color: #59369a;
+  border-color: #53338f;
+}
+
+/* Special function buttons within Function Group */
+.function-controls-group .edit-mode-btn {
+  background-color: #ffc107; /* Amber/Warning */
+  border-color: #ffc107;
+  color: #212529; 
+}
+.function-controls-group .edit-mode-btn:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
+.function-controls-group .edit-mode-btn.active {
+  background-color: #28a745; /* Green for active "Done Editing" state */
+  border-color: #28a745;
+  color: white;
+}
+.function-controls-group .add-column-btn {
+  background-color: #20c997; /* A different shade of teal for add */
+  border-color: #20c997;
+}
+.function-controls-group .add-column-btn:hover {
+  background-color: #1baa80;
+  border-color: #189c73;
+}
+.function-controls-group button[data-action="show-csv"] { /* Specific style for Export CSV */
+    background-color: #fd7e14; /* Orange */
+    border-color: #fd7e14;
+}
+.function-controls-group button[data-action="show-csv"]:hover {
+    background-color: #e36702;
+    border-color: #d96102;
 }
 
 /* Info text in Header */
 .search-info {
   font-size: 12px;
-  color: #666;
+  color: #495057; /* Darker grey for better readability */
   white-space: nowrap;
+  margin-left: auto; /* Push search info to the right */
+  padding: 8px 5px; /* Align vertically a bit better */
+  align-self: center; /* Ensure vertical alignment with other items if header wraps */
 }
 
 .hidden-indicator {
-  color: #c82333; /* Darker red for better contrast (AA compliant 5.15:1 on #fff) */
+  color: #c82333; 
   font-size: 11px;
   margin-left: 8px;
+  font-weight: bold;
 }
 
 /* =============================================
    Main Table Styles
    ============================================= */
 
-/* The main data table structure */
 .json-table > table {
-  width: auto; /* Allow table to be wider than its container if content demands */
-  min-width: 100%; /* But at least as wide as its container initially */
+  width: auto; 
+  min-width: 100%; 
   border-collapse: collapse;
   table-layout: auto; 
 }
 
-/* Main table header cells */
 .json-table > table > thead > tr > th {
   background: #f8f9fa;
   font-weight: 600;
@@ -148,7 +296,7 @@ body {
   white-space: nowrap; 
   padding: 10px 12px; 
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #dee2e6; /* Slightly darker border */
   font-size: 13px;
   min-width: 150px;   
   vertical-align: top;
@@ -158,14 +306,12 @@ body {
   background: #e9ecef;
 }
 
-/* Header cell content layout (for sorting icon, remove button) */
 .json-table > table > thead > tr > th > div {
   display: flex;
   align-items: center; 
   justify-content: space-between; 
 }
 
-/* Sorting indicators */
 .json-table > table > thead > tr > th.sorted::after {
   content: ' ↓';
   color: #007bff;
@@ -177,25 +323,23 @@ body {
 
 th.dragging {
   opacity: 0.4;
-  background: #f0f0f0 !important; /* Use important if other styles override */
-  /* cursor: grabbing; /* Browser usually handles this */
+  background: #e9ecef !important; 
 }
 
 th.drag-over {
   outline: 2px dashed #007bff;
-  outline-offset: -2px; /* Draw inside the border */
-  background-color: #e9ecef !important; /* Light highlight, use important if needed */
+  outline-offset: -2px; 
+  background-color: #dfefff !important; /* Lighter blue highlight */
 }
 
-/* Remove column button in header */
 .remove-col-btn-header {
   margin-left: 5px;
-  padding: 0px 4px;
-  font-size: 10px;
-  line-height: 1;
+  padding: 1px 5px; /* Adjusted padding */
+  font-size: 11px; /* Adjusted font size */
+  line-height: 1.2;
   font-weight: bold;
   cursor: pointer;
-  background-color: #dc3545; /* Red for removal */
+  background-color: #dc3545; 
   color: white;
   border: none;
   border-radius: 3px;
@@ -203,14 +347,13 @@ th.drag-over {
 }
 
 .remove-col-btn-header:hover {
-  background-color: #c82333; /* Darker red */
+  background-color: #c82333; 
 }
 
-/* Main table data cells */
 .json-table > table > tbody > tr > td {
-  padding: 10px 12px; 
+  padding: 9px 12px; /* Slightly adjusted padding */
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #e9ecef; /* Lighter border for rows */
   font-size: 13px;
   min-width: 150px;   
   word-wrap: break-word; 
@@ -218,17 +361,15 @@ th.drag-over {
   vertical-align: top;
 }
 
-/* Main table row styling */
 .json-table > table > tbody > tr:nth-child(even) {
-  background: #f8f9fa;
+  background: #f8f9fa; /* Keep subtle striping */
 }
 
 .json-table > table > tbody > tr:hover {
-  background: #e3f2fd;
+  background: #e6f7ff; /* Lighter blue hover */
 }
 
-/* Row Number Column (Sticky) */
-.row-number { /* Base style for any row number cell */
+.row-number { 
   text-align: center;
   width: 50px !important;     
   min-width: 50px !important;  
@@ -237,24 +378,26 @@ th.drag-over {
   left: 0;
   overflow: hidden; 
   text-overflow: ellipsis;
-  white-space: normal; /* Allow wrapping if number is too long (unlikely) */
+  white-space: normal; 
 }
 
 .json-table > table > thead > tr > th.row-number {
   font-weight: 600;
   color: #495057;
-  background: #f8f9fa; 
-  z-index: 150; /* Above other sticky headers */
+  background: #f1f3f5; /* Slightly different background for sticky header */
+  z-index: 150; 
+  border-right: 1px solid #dee2e6; /* Add a border to separate from scrolling content */
 }
 
 .json-table > table > tbody > tr > td.row-number {
-  font-weight: 600;
+  font-weight: normal; /* Less emphasis than header */
   color: #495057;
   background: #f8f9fa; 
-  z-index: 90; /* Above row content, below sticky header */
+  z-index: 90; 
+  border-right: 1px solid #e9ecef;
 }
 .json-table > table > tbody > tr:nth-child(even) > td.row-number {
-  background: #e9ecef; 
+  background: #e9ecef; /* Match even row striping, slightly adjusted */
 }
 
 
@@ -265,79 +408,88 @@ th.drag-over {
 .expandable {
   cursor: pointer;
   position: relative;
-  background: linear-gradient(135deg, #fff3e0, #fff8e1);
-  border-left: 3px solid #ff9800;
+  background: #fff0e1; /* Lighter, warmer background */
+  border-left: 3px solid #fd7e14; /* Orange accent */
   padding: 4px 8px; 
   border-radius: 4px; 
   display: inline-block; 
   max-width: 100%; 
+  color: #543005; /* Darker text for contrast */
 }
 
 .expandable:hover {
-  background: linear-gradient(135deg, #ffe0b2, #ffecb3);
+  background: #ffe0b2;
 }
 
 .toggle {
   display: inline-block;
-  width: 20px;
+  width: 18px; /* Slightly smaller */
   text-align: center;
   font-weight: bold;
-  color: #004085; /* Darker blue for better contrast (e.g., 5.7:1 on #fff3e0) */
-  margin-right: 8px;
+  color: #c55a11; /* Orange family for toggle */
+  margin-right: 6px;
 }
 
 .nested {
   max-height: 0;
   overflow: hidden; 
-  transition: max-height 0.3s ease, padding 0.3s ease, margin 0.3s ease;
-  background: #f0f8ff; 
-  border-left: 2px solid #007bff;
+  transition: max-height 0.25s ease-out, padding 0.25s ease-out, margin 0.25s ease-out; /* Faster transition */
+  background: #fff9f2; /* Very light background for nested area */
+  border-left: 2px solid #ffac47; /* Lighter orange */
   margin: 0; 
   padding: 0; 
-  border-radius: 4px;
+  border-radius: 0 4px 4px 0; /* Rounded corners on one side */
 }
 
 .nested.expanded {
   max-height: 5000px; 
   padding: 8px 12px;
-  margin: 8px 0 4px 20px; 
+  margin: 6px 0 4px 20px; /* Adjusted margin */
   overflow-y: auto; 
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
 }
 
-/* Nested Table Styles */
 .nested-table {
-  font-size: 11px;
+  font-size: 12px; /* Slightly larger nested table font */
   margin: 4px 0; 
   width: max-content; 
   min-width: 100%;   
   table-layout: auto; 
+  border-collapse: collapse; /* Ensure borders are clean */
 }
 
 .nested-table th,
 .nested-table td {
-  padding: 6px 8px;
-  border-bottom: 1px solid #ddd;
+  padding: 5px 8px; /* Adjusted padding */
+  border: 1px solid #eee; /* Lighter borders for nested table */
   font-size: 12px; 
-  min-width: 100px; 
+  min-width: 90px; 
   word-wrap: break-word;
   overflow-wrap: break-word;
   vertical-align: top;
-  white-space: nowrap; 
+  white-space: normal; /* Allow wrapping in nested cells */
+}
+.nested-table tr:last-child td {
+    border-bottom: 1px solid #eee; /* Ensure last row has bottom border */
 }
 
+
 .nested-table th {
-  background: #e9ecef; 
+  background: #f7f7f7; /* Lighter header for nested */
   position: sticky; 
   top: 0; 
-  z-index: 50; /* Below main table sticky header, above nested content */
-  white-space: nowrap;
+  z-index: 50; 
+  font-weight: 600; /* Bolder nested headers */
+  text-align: left;
 }
 
 .nested-table td.row-number { 
   text-align: center;
   font-weight: normal; 
-  background: #f7f7f7; 
-  /* Inherits .row-number base sticky properties if class is applied */
+  background: #fcfcfc; 
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
 }
 
 /* =============================================
@@ -345,41 +497,52 @@ th.drag-over {
    ============================================= */
 
 .highlight {
-  background: #ffeb3b;
-  padding: 1px 2px;
-  border-radius: 2px;
-  font-weight: bold;
+  background: #ffc107; /* Amber highlight */
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-weight: normal; /* Normal weight for highlighted text, background is enough */
+  color: #333;
 }
 
 .highlight.current {
-  background: #ff5722;
+  background: #dc3545; /* Red for current match */
   color: white;
-  box-shadow: 0 0 4px rgba(255, 87, 34, 0.5);
+  box-shadow: 0 0 5px rgba(220, 53, 69, 0.6);
 }
 
 .path-display {
   font-size: 10px;
-  color: #666;
-  margin-top: 2px;
+  color: #6c757d; /* Grey for paths */
+  margin-top: 3px;
   font-style: italic;
   word-break: break-all; 
+  line-height: 1.3;
+}
+
+.value-special.value-null,
+.value-special.value-undefined {
+  color: #6c757d; 
+  font-style: italic;
+}
+.value-special .highlight {
+  color: #212529; /* Ensure highlight text is visible on special values */
 }
 
 /* =============================================
-   Specific Button Styles
+   Specific Button Styles (Not in Header)
    ============================================= */
 
 .promote-btn {
   margin-left: 8px; 
-  padding: 1px 5px; 
-  font-size: 11px;
+  padding: 2px 6px; 
+  font-size: 10px; /* Smaller promote button */
   line-height: 1.2;
   font-weight: bold;
   cursor: pointer;
   background-color: #28a745; 
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 3px;
   vertical-align: middle; 
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
@@ -389,8 +552,6 @@ th.drag-over {
   box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
-/* Note: .controls button.active is defined in General Button Styling */
-
 /* =============================================
    Modal Internals
    ============================================= */
@@ -398,11 +559,12 @@ th.drag-over {
 .modal-content {
   background: white;
   border-radius: 8px;
-  padding: 20px;
+  padding: 25px; /* Increased padding */
   max-width: 90%;
-  max-height: 90%;
+  max-height: 90vh; /* Use vh for consistency */
   overflow: auto;
   position: relative;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3); /* Stronger shadow for modals */
 }
 
 .modal-header {
@@ -410,31 +572,44 @@ th.drag-over {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #dee2e6;
   padding-bottom: 15px;
 }
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem; /* Larger modal titles */
+}
+
 
 .close-btn {
-  background: #dc3545;
-  color: white;
+  background: transparent; /* Transparent background */
+  color: #6c757d; /* Grey color */
   border: none;
-  border-radius: 4px;
-  padding: 8px 12px;
+  font-size: 1.5rem; /* Larger close icon */
+  line-height: 1;
+  padding: 0.25rem 0.75rem; /* Adjust padding */
   cursor: pointer;
+  opacity: 0.7;
 }
+.close-btn:hover {
+    color: #343a40; /* Darker on hover */
+    opacity: 1;
+}
+
 
 /* =============================================
    Output Areas (SQL, JSON Edit)
    ============================================= */
 
-.sql-output, .json-edit-output { /* Grouped for common properties */
+.sql-output, .json-edit-output { 
   width: 100%;
-  font-family: 'Consolas', monospace; /* Explicitly set, though inherits from body */
-  font-size: 12px;
+  font-family: 'Consolas', 'Menlo', 'Courier New', monospace; 
+  font-size: 13px; /* Larger font for readability */
   padding: 15px;
-  border: 1px solid #ddd;
+  border: 1px solid #ced4da;
   border-radius: 4px;
   background: #f8f9fa;
+  line-height: 1.5;
 }
   
 .sql-output {
@@ -446,27 +621,21 @@ th.drag-over {
    Feedback & Utility Styles
    ============================================= */
 
-.loading {
+.loading, .no-results {
   text-align: center;
-  padding: 40px;
-  color: #666;
-}
-
-.no-results {
-  text-align: center;
-  padding: 40px;
-  color: #999;
+  padding: 40px 20px; /* More padding */
+  color: #6c757d;
   font-style: italic;
+  font-size: 1.1em; /* Slightly larger */
 }
 
-/* Add to your CSS */
-.json-edit-output.drag-over-active {
-  border: 2px dashed #007bff !important; /* Use !important if needed to override existing styles */
-  background-color: #f0f8ff;
+.json-edit-output.drag-over-active,
+#json-modal-content.drag-over-active {
+  border: 2px dashed #007bff !important; 
+  background-color: #e9f4ff !important; /* Lighter blue background */
 }
-#json-modal-content.drag-over-active { /* If dropping on modal content */
-    outline: 2px dashed #007bff;
-    outline-offset: -10px; /* Adjust as needed */
+#json-modal-content.drag-over-active { 
+    outline-offset: -10px; 
 }
 
 /* =============================================
@@ -474,52 +643,59 @@ th.drag-over {
    ============================================= */
 
 /* General Focus Styles for Interactive Elements */
-.controls button:focus, 
-.search-nav button:focus,
+.header button:focus,
+.search-box:focus, /* Already has a good :focus style, but ensure consistency if needed */
 .remove-col-btn-header:focus,
 .promote-btn:focus,
 .close-btn:focus,
-.expandable[role="button"]:focus, /* For clickable expand/collapse areas */
-th[role="button"]:focus, /* For sortable table headers */
-.modal-footer button:focus, /* Buttons in modal footer */
-.modal-header select:focus, /* Select in modal header */
-.promote-popover-btn:focus, /* Buttons in promote popover */
-button:focus, /* A general fallback for other buttons if needed */
-select:focus /* For the dialect select */
- {
-  outline: 2px solid #0056b3; /* A distinct blue, adjust color as needed */
-  outline-offset: 1px;         /* Small offset so outline doesn't overlap element too much */
-  box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.3); /* Optional: softer glow */
+.expandable[role="button"]:focus, 
+th[role="button"]:focus, 
+.modal button:focus, /* Generic modal button focus */
+.modal select:focus,
+.modal textarea:focus, /* For textareas in modals like SQL, JSON */
+.promote-popover-btn:focus,
+.add-column-popover-btn:focus,
+button:focus { /* Fallback for other buttons not specifically targeted */
+  outline: 2px solid #0056b3; 
+  outline-offset: 2px; /* Slightly more offset */        
+  box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.35); 
 }
 
-/* Input file button styling when hidden input is focused (for keyboard users) */
-input[type="file"]:focus + button {
+/* Override for search box if default is preferred */
+.search-box:focus {
+  border-color: #80bdff; /* Standard Bootstrap focus blue */
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); 
+  outline: none; /* Remove default outline if box-shadow is used */
+}
+
+
+input[type="file"]:focus + button { /* Style for button that triggers hidden file input */
   outline: 2px solid #0056b3;
-  outline-offset: 1px;
-  box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.3);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.35);
 }
 
-
-/* Ensure textarea focus is also clear */
 .sql-output:focus,
 .json-edit-output:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-  outline: none; /* If using box-shadow for focus, outline might be redundant */
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  outline: none; 
 }
 
-/* For popover buttons - specific style if needed to override general button:focus */
-.promote-popover-btn:focus {
-  /* General style above should cover, but can add specific overrides here */
-  background-color: #e9ecef; /* Add a background change for better visibility */
+/* Specific focus for popover buttons if needed for better visibility */
+.promote-popover-btn:focus,
+.add-column-popover-btn:focus {
+  background-color: #e9ecef; /* Light background highlight */
+  border-color: #0056b3; /* Add border color change */
 }
-/* In Special Cell/Content Styling or a new section */
-.value-special.value-null,
-.value-special.value-undefined {
-  color: #999; /* Light grey */
-}
-/* Ensure highlighting within special text is still visible */
-.value-special .highlight {
-  color: initial; /* Or specific color if grey clashes */
-  /* background remains from .highlight */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }

@@ -267,3 +267,12 @@ export const detectDelimiter = (textSample) => {
   return presentDelimiters[0].char;
 };
 
+export function debounce(func, delay) {
+    let timeoutId;
+    return function(...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            func.apply(this, args);
+        }, delay);
+    };
+}

@@ -189,34 +189,43 @@ const renderHeader = () => {
 
   return `
     <div class="header">
-      <input 
-        aria-label="Search JSON content"
-        id="json-browser-search-box" 
-        type="text" 
-        class="search-box" 
-        placeholder="Search (Press Enter)" 
-        value="${escapeStringForDataAttribute(state.searchQuery)}"
-        data-action="search"
-      >
-      <div class="search-nav">
-        <button aria-label="Previous search result" data-action="search-prev" ${state.searchResults.length === 0 ? 'disabled' : ''}>←</button>
-        <button aria-label="Next search result" data-action="search-next" ${state.searchResults.length === 0 ? 'disabled' : ''}>→</button>
+      <div class="search-group">
+        <input 
+          aria-label="Search JSON content"
+          id="json-browser-search-box" 
+          type="text" 
+          class="search-box" 
+          placeholder="Search JSON (Press Enter)" 
+          value="${escapeStringForDataAttribute(state.searchQuery)}"
+          data-action="search" 
+        >
+        <button class="search-button" data-action="execute-search" aria-label="Execute search">Search</button>
+        <div class="search-nav">
+          <button aria-label="Previous search result" data-action="search-prev" ${state.searchResults.length === 0 ? 'disabled' : ''}>←</button>
+          <button aria-label="Next search result" data-action="search-next" ${state.searchResults.length === 0 ? 'disabled' : ''}>→</button>
+        </div>
       </div>
-      <div class="controls">
-        <button data-action="reset-view">Reset View</button>
-        <button data-action="expand-all">Expand All</button>
-        <button data-action="collapse-all">Collapse All</button>
-        <button data-action="toggle-paths" class="${state.showPaths ? 'active' : ''}">
+
+      <div class="view-controls-group">
+        <button data-action="reset-view" title="Reset view to default columns and expansion state">Reset View</button>
+        <button data-action="expand-all" title="Expand all expandable items">Expand All</button>
+        <button data-action="collapse-all" title="Collapse all expanded items">Collapse All</button>
+        <button data-action="toggle-paths" class="${state.showPaths ? 'active' : ''}" title="Toggle visibility of JSON paths">
           Paths
         </button>
-        <button data-action="toggle-edit-mode" class="${state.editModeActive ? 'active' : ''}">
+
+      </div>
+
+      <div class="function-controls-group">
+        <button data-action="toggle-edit-mode" class="edit-mode-btn ${state.editModeActive ? 'active' : ''}" title="Toggle column editing, reordering, and value promotion">
           ${state.editModeActive ? 'Done Editing' : 'Edit Mode'}
         </button>
-        ${state.editModeActive ? `<button id="add-column-button" data-action="show-add-column-popover" aria-haspopup="true" aria-expanded="${state.showAddColumnPopover}">Add Column +</button>` : ''}
-        <button data-action="show-sql">SQL</button>
-        <button data-action="show-json">View/Edit Data</button>
-        <button data-action="show-csv">Export CSV</button>
+        ${state.editModeActive ? `<button id="add-column-button" class="add-column-btn" data-action="show-add-column-popover" aria-haspopup="true" aria-expanded="${state.showAddColumnPopover}" title="Add a previously removed column">Add Column +</button>` : ''}
+        <button data-action="show-sql" title="Generate SQL (CREATE TABLE and INSERT statements) from current view">SQL</button>
+        <button data-action="show-json" title="View or edit the raw JSON/CSV/TSV data">View/Edit Data</button>
+        <button data-action="show-csv" title="Export current table view as CSV">Export CSV</button>
       </div>
+      
       <div class="search-info" role="status" aria-live="polite" aria-atomic="true">
         ${state.searchResults.length > 0 
           ? `${state.currentSearchIndex + 1} of ${state.searchResults.length}${hiddenCount > 0 ? `<span class="hidden-indicator">(${hiddenCount} hidden)</span>` : ''}` 
@@ -821,3 +830,4 @@ export const render = () => {
       }
   }
 };
+

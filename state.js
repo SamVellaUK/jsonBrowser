@@ -63,4 +63,5 @@ export const createReactiveState = (initial) => {
     addColumnPopoverAnchor: null,     // NEW: Anchor element for "Add Column" popover
     showCsvModal: false,          // Controls visibility of the CSV export modal
     csvOutputContent: '',       // Holds the generated CSV string
+    darkModeActive: false, // Add this
   });
