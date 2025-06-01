@@ -1,7 +1,7 @@
 // state.js
 
 // Reactive state management
-const createReactiveState = (initial) => {
+export const createReactiveState = (initial) => {
     const listeners = new Set();
     const state = new Proxy(initial, {
       set(target, key, value) {
@@ -40,7 +40,7 @@ const createReactiveState = (initial) => {
   };
   
   // Application state
-  const state = createReactiveState({
+ export const state = createReactiveState({
     data: [],
     searchQuery: '',
     expandedPaths: new Set(),
