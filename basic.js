@@ -1,5 +1,3 @@
-// --- START OF FILE basic.js ---
-
 import { generateSQL } from './sqlGenerator.js';
 
 // Reactive state management
@@ -9,7 +7,7 @@ const createReactiveState = (initial) => {
       set(target, key, value) {
         const oldValue = target[key];
         if (oldValue !== value) {
-          if (key === 'expandedPaths' && value instanceof Set && oldValue instanceof Set) {
+          if ((key === 'expandedPaths' || key === 'allPossibleColumns') && value instanceof Set && oldValue instanceof Set) { // Updated for allPossibleColumns
              if (value.size !== oldValue.size || ![...value].every(item => oldValue.has(item))) {
                 target[key] = value;
                 listeners.forEach(fn => fn(key, value));
@@ -60,6 +58,11 @@ const createReactiveState = (initial) => {
     jsonValidationMessage: '', // Message for JSON validation status
     showPromoteKeyPopover: false, 
     promoteKeyPopoverContext: null, 
+    allPossibleColumns: new Set(),    // NEW: Stores all discovered column paths
+    showAddColumnPopover: false,      // NEW: Controls visibility of "Add Column" popover
+    addColumnPopoverAnchor: null,     // NEW: Anchor element for "Add Column" popover
+    showCsvModal: false,          // Controls visibility of the CSV export modal
+    csvOutputContent: '',       // Holds the generated CSV string
   });
 
 // Focus Management
@@ -89,7 +92,10 @@ function closeModalFocus(modalElementQuerySelector) {
         modal.removeEventListener('keydown', trapFocusInModal);
     }
     if (previouslyFocusedElement) {
-        previouslyFocusedElement.focus();
+        // Check if previouslyFocusedElement is still in the DOM and focusable
+        if (document.body.contains(previouslyFocusedElement) && typeof previouslyFocusedElement.focus === 'function') {
+           previouslyFocusedElement.focus();
+        }
         previouslyFocusedElement = null;
     }
 }
@@ -123,7 +129,7 @@ function trapFocusInModal(e) {
   // Utility functions
 const escapeStringForDataAttribute = (str) => {
   if (typeof str !== 'string') return str;
-  return str.replace(/&/g, '&') // Escape ampersands
+  return str.replace(/&/g, '&') // Escape ampersands first
             .replace(/"/g, '"'); // Escape double quotes
 };
 
@@ -290,6 +296,7 @@ const escapeStringForDataAttribute = (str) => {
       
       if (columnChanged) {
           state.visibleColumns = newVisibleColumns; 
+          updateAllPossibleColumns(); // Ensure new column is tracked
       }
   
       if (needsExpandedPathNotify) {
@@ -301,6 +308,95 @@ const escapeStringForDataAttribute = (str) => {
     } catch (e) {
       console.warn('Error expanding to result:', e);
     }
+  };
+  
+  // NEW: Function to update the set of all possible columns
+  const updateAllPossibleColumns = () => {
+    const newAllPossible = new Set();
+    // Add all top-level keys from current data
+    state.data.forEach(row => {
+        if (row && typeof row === 'object' && row !== null) { // Added null check for row
+            Object.keys(row).forEach(key => newAllPossible.add(key));
+        }
+    });
+    // Ensure all currently visible columns (including promoted ones) are in the set
+    state.visibleColumns.forEach(colPath => newAllPossible.add(colPath));
+
+    // Add previously known columns too, in case data changes and some are temporarily not in current data/visible
+    // This helps retain columns that might disappear if data is filtered/changed and then reverted.
+    state.allPossibleColumns.forEach(colPath => newAllPossible.add(colPath));
+
+    // Check if the set has actually changed to avoid unnecessary updates/renders
+    if (newAllPossible.size !== state.allPossibleColumns.size || ![...newAllPossible].every(item => state.allPossibleColumns.has(item))) {
+        state.allPossibleColumns = newAllPossible;
+    }
+  };
+
+  const escapeCsvField = (field) => {
+    if (field === null || field === undefined) {
+        return ''; // Represent null/undefined as an empty string in CSV
+    }
+    const stringField = String(field);
+    // If the field contains a comma, newline, or double quote, then enclose in double quotes.
+    if (stringField.includes(',') || stringField.includes('\n') || stringField.includes('"')) {
+        // Within a double-quoted field, any internal double quote must be represented by two double quotes.
+        return `"${stringField.replace(/"/g, '""')}"`;
+    }
+    return stringField;
+};
+
+const generateCSV = () => {
+    if (!state.data || state.data.length === 0) {
+        return 'No data to export.';
+    }
+    // Use currently visible columns as headers
+    if (!state.visibleColumns || state.visibleColumns.length === 0) {
+        return 'No columns currently visible for export.';
+    }
+
+    const headers = state.visibleColumns.map(header => escapeCsvField(header));
+    const rows = state.data.map(row => {
+        return state.visibleColumns.map(colKey => {
+            const value = getValue(row, colKey); // getValue handles complex paths
+            let cellValue;
+
+            if (value === null || value === undefined) {
+                cellValue = ''; // Output empty for null/undefined in CSV
+            } else if (typeof value === 'object') {
+                const stringified = JSON.stringify(value);
+                const previewLength = 15;
+                const preview = stringified.substring(0, previewLength);
+                const prefix = Array.isArray(value) ? "<Json Array> " : "<Json Object> ";
+                cellValue = prefix + preview + (stringified.length > previewLength ? "..." : "");
+            } else {
+                cellValue = String(value); // Numbers, booleans, strings
+            }
+            return escapeCsvField(cellValue);
+        }).join(',');
+    });
+
+    return [headers.join(','), ...rows].join('\n');
+};
+
+const renderCsvModal = () => {
+    if (!state.showCsvModal) return '';
+    // Using sql-output class for styling consistency of the textarea
+    return `
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="csv-modal-title">
+        <div id="csv-modal-content-wrapper" class="modal-content" style="width: 900px; display: flex; flex-direction: column; max-height: 80vh;">
+          <div class="modal-header">
+            <h3 id="csv-modal-title">CSV Export</h3>
+            <div>
+              <button data-action="copy-csv" style="margin-right: 10px;">Copy CSV</button>
+              <button data-action="download-csv" style="margin-right: 10px;">Download CSV</button>
+              <button class="close-btn" data-action="close-csv" aria-label="Close CSV modal">×</button>
+            </div>
+          </div>
+          <textarea id="csv-output-area" class="sql-output" readonly style="flex-grow: 1; width: 100%; resize: none; margin-top: 10px;">${escapeStringForDataAttribute(state.csvOutputContent)}</textarea>
+          <div style="font-size: 12px; color: #666; margin-top: 5px;">Exports currently visible top-level columns. Nested objects/arrays are summarized.</div>
+        </div>
+      </div>
+    `;
   };
     
   const renderHeader = () => {
@@ -326,6 +422,7 @@ const escapeStringForDataAttribute = (str) => {
           <button aria-label="Next search result" data-action="search-next" ${state.searchResults.length === 0 ? 'disabled' : ''}>→</button>
         </div>
         <div class="controls">
+          <button data-action="reset-view">Reset View</button>
           <button data-action="expand-all">Expand All</button>
           <button data-action="collapse-all">Collapse All</button>
           <button data-action="toggle-paths" class="${state.showPaths ? 'active' : ''}">
@@ -334,8 +431,10 @@ const escapeStringForDataAttribute = (str) => {
           <button data-action="toggle-edit-mode" class="${state.editModeActive ? 'active' : ''}">
             ${state.editModeActive ? 'Done Editing' : 'Edit Mode'}
           </button>
+          ${state.editModeActive ? `<button id="add-column-button" data-action="show-add-column-popover" aria-haspopup="true" aria-expanded="${state.showAddColumnPopover}">Add Column +</button>` : ''}
           <button data-action="show-sql">SQL</button>
           <button data-action="show-json">View/Edit Data</button>
+          <button data-action="show-csv">Export CSV</button>
         </div>
         <div class="search-info" role="status" aria-live="polite" aria-atomic="true">
           ${state.searchResults.length > 0 
@@ -350,67 +449,87 @@ const escapeStringForDataAttribute = (str) => {
     const isExpandable = value && typeof value === 'object';
     const expandKey = `${rowIndex}-${path}`;
     const isExpanded = state.expandedPaths.has(expandKey);
-    
-    let displayValue = (value === null || value === undefined) ? '' : String(value);
+    const isTopLevelCell = !isNestedCall; // True if this cell is in the main table body
+
+    let cellDisplayHtml = '';
+
+    const currentResult = state.searchResults[state.currentSearchIndex];
+    // Check if the current search result matches this cell's row and path for highlighting
+    const isCurrentMatchForHighlight = currentResult &&
+                                      currentResult.rowIndex === rowIndex &&
+                                      currentResult.path === path;
+
     if (isExpandable) {
-        displayValue = Array.isArray(value) 
+        const displayValueText = Array.isArray(value) 
             ? `Array(${value.length})` 
             : `Object(${Object.keys(value).length})`;
-    }
-  
-    let cellContent = '';
-    
-    const currentResult = state.searchResults[state.currentSearchIndex];
-    const isCurrentMatchInCell = currentResult &&
-      currentResult.rowIndex === rowIndex &&
-      currentResult.path === path;
+        // Highlight the "Array(X)" or "Object(Y)" text if it's the search hit and the object is not expanded
+        const highlightedDisplayValue = highlightText(displayValueText, state.searchQuery, isCurrentMatchForHighlight && !isExpanded);
+        
+        const nestedContentId = `nested-content-${rowIndex}-${path.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+        const nestedDivContent = isExpanded ? renderNestedObject(value, path, rowIndex) : ''; // renderNestedObject calls renderCell internally with isNestedCall=true
+        
+        cellDisplayHtml = `
+          <div 
+            class="expandable" 
+            data-action="toggle" 
+            data-path="${escapeStringForDataAttribute(path)}" 
+            data-row="${rowIndex}"
+            role="button"
+            tabindex="0"
+            aria-expanded="${isExpanded ? 'true' : 'false'}"
+            aria-controls="${nestedContentId}">
+            <span class="toggle" aria-hidden="true">${isExpanded ? '−' : '+'}</span>
+            ${highlightedDisplayValue}
+          </div>
+          <div class="nested ${isExpanded ? 'expanded' : ''}" id="${nestedContentId}" data-parent-path="${escapeStringForDataAttribute(path)}" data-row-index-for-nested="${rowIndex}">
+            ${nestedDivContent}
+          </div>
+        `;
+    } else { // Primitive value or special top-level display
+        let textForHighlighting;
+        let finalDisplay;
 
-    // Generate a unique ID for aria-controls
-    const nestedContentId = `nested-content-${rowIndex}-${path.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
-  
-    if (isExpandable) {
-      const nestedDivContent = isExpanded ? renderNestedObject(value, path, rowIndex) : '';
-      cellContent = `
-        <div 
-          class="expandable" 
-          data-action="toggle" 
-          data-path="${escapeStringForDataAttribute(path)}" 
-          data-row="${rowIndex}"
-          role="button"
-          tabindex="0"
-          aria-expanded="${isExpanded ? 'true' : 'false'}"
-          aria-controls="${nestedContentId}">
-          <span class="toggle" aria-hidden="true">${isExpanded ? '−' : '+'}</span>
-          ${highlightText(displayValue, state.searchQuery, isCurrentMatchInCell && !isExpanded)}
-        </div>
-        <div class="nested ${isExpanded ? 'expanded' : ''}" id="${nestedContentId}" data-parent-path="${escapeStringForDataAttribute(path)}" data-row-index-for-nested="${rowIndex}">
-          ${nestedDivContent}
-        </div>
-      `;
-    } else { 
-      let promoteButtonHtml = '';
-      const isPrimitive = value !== null && value !== undefined && typeof value !== 'object';
-      if (state.editModeActive && isPrimitive && isNestedCall) { 
-        promoteButtonHtml = `
-          <button 
-            class="promote-btn" 
-            data-action="promote-value" 
-            data-path-to-value="${escapeStringForDataAttribute(path)}" 
-            data-row-index="${rowIndex}"
-            aria-label="Promote '${escapeStringForDataAttribute(path)}' to column"
-            title="Promote '${escapeStringForDataAttribute(path)}' to column"
-          >+</button>`;
-      }
-      cellContent = highlightText(displayValue, state.searchQuery, isCurrentMatchInCell) + promoteButtonHtml;
+        if (isTopLevelCell) { // Apply special styling only for top-level cells
+            if (value === null) {
+                textForHighlighting = '<null>'; // Display text
+                finalDisplay = `<span class="value-special value-null">${highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight)}</span>`;
+            } else if (value === undefined) {
+                textForHighlighting = '<undefined>'; // Display text
+                finalDisplay = `<span class="value-special value-undefined">${highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight)}</span>`;
+            } else { // Other primitives (string, number, boolean), including empty string
+                textForHighlighting = String(value); // Empty string remains empty
+                finalDisplay = highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight);
+            }
+        } else { // Nested primitive value (no special <null> styling, just highlight)
+            textForHighlighting = (value === null || value === undefined) ? '' : String(value); // For highlighting, treat null/undefined as empty
+            finalDisplay = highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight);
+        }
+        cellDisplayHtml = finalDisplay;
+
+        // Add promote button for primitive values *inside nested structures*
+        const isPrimitive = value !== null && value !== undefined && typeof value !== 'object';
+        if (state.editModeActive && isPrimitive && isNestedCall) { 
+            cellDisplayHtml += `
+              <button 
+                class="promote-btn" 
+                data-action="promote-value" 
+                data-path-to-value="${escapeStringForDataAttribute(path)}" 
+                data-row-index="${rowIndex}"
+                aria-label="Promote '${escapeStringForDataAttribute(path)}' to column"
+                title="Promote '${escapeStringForDataAttribute(path)}' to column"
+              >+</button>`;
+        }
     }
     
     const pathDisplay = state.showPaths ? `<div class="path-display">${path}</div>` : '';
     
-    if (!isNestedCall) {
-        return `<td class="${path === 'id' ? 'col-id' : ''}"><div>${cellContent}</div>${pathDisplay}</td>`;
+    if (isTopLevelCell) { // This is a <td> in the main table
+        return `<td class="${path === 'id' ? 'col-id' : ''}"><div>${cellDisplayHtml}</div>${pathDisplay}</td>`;
+    } else { // This is content for a nested display (e.g., inside a .nested div, could be part of a nested table cell)
+        return `<div>${cellDisplayHtml}</div>`; // renderNestedObject will wrap this in <td> if it's building a table rows/cells
     }
-    return `<div>${cellContent}</div>`; 
-  };
+};
   
   const renderNestedObject = (obj, basePath, rowIndex) => {
     if (!obj || typeof obj !== 'object') {
@@ -736,8 +855,75 @@ const escapeStringForDataAttribute = (str) => {
     `;
     content += '</ul>';
 
-    return `<div class="promote-key-popover" style="${popoverStyle}">${content}</div>`;
+    return `<div id="promote-key-popover" class="promote-key-popover" style="${popoverStyle}" role="dialog" aria-modal="true" aria-labelledby="promote-key-popover-title">
+                <h4 id="promote-key-popover-title" class="sr-only">Promote Key Options</h4> <!-- For screen readers -->
+                ${content}
+            </div>`;
   };
+
+// NEW: Render function for the "Add Column" popover
+const renderAddColumnPopover = () => {
+    if (!state.showAddColumnPopover || !state.addColumnPopoverAnchor) {
+        return '';
+    }
+
+    const anchorRect = state.addColumnPopoverAnchor.getBoundingClientRect();
+    const popoverTop = anchorRect.bottom + window.scrollY + 5;
+    // Attempt to position popover smartly: if not enough space to the right, position to the left.
+    const popoverWidth = 250; // Approximate width
+    let popoverLeft = anchorRect.left + window.scrollX;
+    if (popoverLeft + popoverWidth > window.innerWidth) {
+        popoverLeft = anchorRect.right + window.scrollX - popoverWidth;
+    }
+    popoverLeft = Math.max(0, popoverLeft); // Ensure it doesn't go off-screen left
+
+
+    const popoverStyle = `
+        position: absolute;
+        top: ${popoverTop}px;
+        left: ${popoverLeft}px;
+        background-color: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 10px;
+        z-index: 1050;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        font-size: 0.9em;
+        min-width: ${popoverWidth}px;
+        max-height: 300px;
+        overflow-y: auto;
+    `;
+
+    const availableColumnsToAdd = [...state.allPossibleColumns].filter(
+        col => !state.visibleColumns.includes(col)
+    ).sort((a,b) => a.localeCompare(b, undefined, {sensitivity: 'base'})); // Case-insensitive sort for display
+
+    let content = `<div style="margin-bottom: 8px; font-weight: bold; padding-bottom: 5px; border-bottom: 1px solid #eee;">Available Columns to Add</div>`;
+    if (availableColumnsToAdd.length === 0) {
+        content += '<div style="padding: 5px 0;"><i>No more columns to add.</i></div>';
+    } else {
+        content += '<ul style="list-style: none; padding: 0; margin: 0;">';
+        availableColumnsToAdd.forEach(col => {
+            content += `
+                <li style="margin-bottom: 5px;">
+                    <button class="add-column-popover-btn" data-action="add-column-from-popover" data-column-to-add="${escapeStringForDataAttribute(col)}" title="Add column: ${escapeStringForDataAttribute(col)}">
+                       + ${escapeStringForDataAttribute(col)}
+                    </button>
+                </li>`;
+        });
+        content += '</ul>';
+    }
+    content += `
+        <div style="margin-top: 10px; border-top: 1px solid #eee; padding-top: 8px; text-align: right;">
+            <button class="add-column-popover-cancel-btn" data-action="cancel-add-column-popover">Close</button>
+        </div>
+    `;
+    return `<div id="add-column-popover" class="add-column-popover" style="${popoverStyle}" role="dialog" aria-modal="true" aria-labelledby="add-column-popover-title">
+                <h4 id="add-column-popover-title" class="sr-only">Reinstate Column</h4> <!-- For screen readers -->
+                ${content}
+            </div>`;
+};
+
 
 // Drag-and-drop state
 let dragSourceElement = null;
@@ -773,19 +959,14 @@ function handleThDragEnter(e) {
 
 function handleThDragLeave(e) {
     if (!state.editModeActive) return;
-    // `this` is the TH element being left
-    // Only remove drag-over if not part of the source or if moving to another child (less flickering)
-    // A simpler approach: dragend cleans up all .drag-over, or mouse position check.
-    // For now, just remove it from the element being left.
     this.classList.remove('drag-over');
 }
 
 function handleThDrop(e) {
     if (!state.editModeActive || !dragSourceElement) return;
-    e.stopPropagation(); // Stops the browser from redirecting.
-    e.preventDefault();  // Ensure drop is handled by us
+    e.stopPropagation(); 
+    e.preventDefault();  
 
-    // `this` is the drop target TH
     this.classList.remove('drag-over');
 
     if (dragSourceElement !== this) {
@@ -800,27 +981,24 @@ function handleThDrop(e) {
         const targetIndex = currentCols.indexOf(targetColumn);
 
         if (sourceIndex !== -1 && targetIndex !== -1 && sourceIndex !== targetIndex) {
-            const [movedItem] = currentCols.splice(sourceIndex, 1); // Remove item
-            currentCols.splice(targetIndex, 0, movedItem);          // Insert item
-            state.visibleColumns = currentCols; // This will trigger a re-render
+            const [movedItem] = currentCols.splice(sourceIndex, 1); 
+            currentCols.splice(targetIndex, 0, movedItem);          
+            state.visibleColumns = currentCols; 
         }
     }
-    // dragSourceElement is reset in dragend
     return false;
 }
 
 function handleThDragEnd(e) {
     if (!state.editModeActive) return;
-    // `this` is the TH element that was dragged
     this.classList.remove('dragging');
     
-    // Clean up .drag-over from all th elements in this table head
     const tableHead = this.closest('thead');
     if (tableHead) {
         tableHead.querySelectorAll('th.drag-over').forEach(th => th.classList.remove('drag-over'));
     }
     
-    dragSourceElement = null; // Reset the source element
+    dragSourceElement = null; 
 }
 
   const render = () => {
@@ -851,11 +1029,12 @@ function handleThDragEnd(e) {
       ${renderSqlModal()} 
       ${renderJsonModal()}
       ${renderPromoteKeyPopover()}
+      ${renderAddColumnPopover()} 
+      ${renderCsvModal()} 
     `;
 
 if (state.showJsonModal) {
     const jsonEditArea = document.getElementById('json-edit-area');
-    // Prefer modal content or fallback to textarea. Use the wrapper if available.
     const modalContentElement = document.getElementById('json-modal-content'); 
     const modalContentTarget = modalContentElement || jsonEditArea;
     
@@ -866,7 +1045,7 @@ if (state.showJsonModal) {
             e.preventDefault();
             e.stopPropagation();
             e.dataTransfer.dropEffect = 'copy';
-            modalContentTarget.classList.add('drag-over-active'); // Use class for visual feedback
+            modalContentTarget.classList.add('drag-over-active'); 
         };
         const dragLeaveHandler = (e) => {
             e.preventDefault();
@@ -885,7 +1064,6 @@ if (state.showJsonModal) {
                 reader.onload = (loadEvent) => {
                     state.rawJsonEditContent = loadEvent.target.result;
                     state.jsonValidationMessage = 'File dropped. Validate or Apply & Close.';
-                    // If jsonEditArea is different from modalContentTarget, update its value too
                     if (jsonEditArea) jsonEditArea.value = state.rawJsonEditContent;
                 };
                 reader.onerror = () => {
@@ -898,12 +1076,9 @@ if (state.showJsonModal) {
         modalContentTarget.addEventListener('dragover', dragOverHandler);
         modalContentTarget.addEventListener('dragleave', dragLeaveHandler);
         modalContentTarget.addEventListener('drop', dropHandler);
-
-        // Store handlers to remove them later if needed, though re-rendering usually handles this
         modalContentTarget._dndHandlers = { dragOverHandler, dragLeaveHandler, dropHandler };
     }
 } else {
-    // Clean up if modal is not shown but listeners might have been attached
     const modalContentTarget = document.getElementById('json-modal-content') || document.getElementById('json-edit-area');
     if (modalContentTarget && modalContentTarget.dataset.dndListenersAttached) {
         if (modalContentTarget._dndHandlers) {
@@ -923,7 +1098,6 @@ if (state.showJsonModal) {
         if (mainScrollLeft !== undefined) newJsonTableElement.scrollLeft = mainScrollLeft; 
     }
 
-    // Add drag-and-drop listeners for column reordering if in edit mode
     if (state.editModeActive) {
         const thElements = appElement.querySelectorAll('table > thead > tr > th[data-column][draggable="true"]');
         thElements.forEach(th => {
@@ -938,7 +1112,7 @@ if (state.showJsonModal) {
   
     if (activeElementId) {
         const newActiveElement = document.getElementById(activeElementId);
-        if (newActiveElement && document.activeElement !== newActiveElement) { // Avoid re-focusing if already focused
+        if (newActiveElement && document.activeElement !== newActiveElement) { 
             newActiveElement.focus();
             if ((activeElementId === 'json-browser-search-box' || activeElementId === 'json-edit-area') && 
                 selectionStart !== undefined && selectionEnd !== undefined) {
@@ -952,7 +1126,7 @@ if (state.showJsonModal) {
         const jsonEditArea = document.getElementById('json-edit-area');
         if (jsonEditArea && jsonEditArea.value !== state.rawJsonEditContent) {
             jsonEditArea.value = state.rawJsonEditContent; 
-            if (activeElementId === 'json-edit-area' && newActiveElement === jsonEditArea) {
+            if (activeElementId === 'json-edit-area' && document.getElementById(activeElementId) === jsonEditArea) {
                  try {
                     jsonEditArea.setSelectionRange(selectionStart, selectionEnd);
                 } catch (ex) {/* ignore */}
@@ -966,7 +1140,9 @@ if (state.showJsonModal) {
   const handleKeyboard = (e) => {
     const searchBoxFocused = e.target.matches('.search-box') || e.target.id === 'json-browser-search-box';
     const jsonEditAreaFocused = e.target.id === 'json-edit-area';
-    const inModal = e.target.closest('.modal');
+    const inModal = e.target.closest('.modal'); // General modals (SQL, JSON Edit)
+    const inPromotePopover = e.target.closest('#promote-key-popover');
+    const inAddColumnPopover = e.target.closest('#add-column-popover');
   
     if (searchBoxFocused) {
       if (e.key === 'Enter') {
@@ -997,10 +1173,31 @@ if (state.showJsonModal) {
     }
     
     if (e.key === 'Escape') {
-        if (state.showPromoteKeyPopover) {
+        if (state.showAddColumnPopover) { 
             e.preventDefault();
-            state.showPromoteKeyPopover = false;
-            state.promoteKeyPopoverContext = null;
+            const cancelButton = document.querySelector('#add-column-popover .add-column-popover-cancel-btn');
+            if (cancelButton) {
+                cancelButton.click(); // Triggers the 'cancel-add-column-popover' action
+            } else { // Fallback if button not found for some reason
+                closeModalFocus('#add-column-popover');
+                state.showAddColumnPopover = false;
+                if (state.addColumnPopoverAnchor) state.addColumnPopoverAnchor.focus();
+                state.addColumnPopoverAnchor = null;
+            }
+        } else if (state.showPromoteKeyPopover) {
+            e.preventDefault();
+            const cancelButton = document.querySelector('#promote-key-popover .promote-popover-cancel-btn');
+            if (cancelButton) {
+                 cancelButton.click(); // Triggers 'cancel-promote-popover' action
+            } else {
+                closeModalFocus('#promote-key-popover');
+                state.showPromoteKeyPopover = false;
+                // Restore focus to trigger if known
+                if (state.promoteKeyPopoverContext && state.promoteKeyPopoverContext.triggerElement) {
+                    state.promoteKeyPopoverContext.triggerElement.focus();
+                }
+                state.promoteKeyPopoverContext = null;
+            }
         } else if (state.showSqlModal && inModal) {
             e.preventDefault();
             closeModalFocus('.modal[aria-labelledby="sql-modal-title"]');
@@ -1010,23 +1207,20 @@ if (state.showJsonModal) {
             closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
             state.showJsonModal = false;
             state.jsonValidationMessage = '';
-        } else if (state.editModeActive && !searchBoxFocused && !jsonEditAreaFocused && !inModal) { 
+        } else if (state.editModeActive && !searchBoxFocused && !jsonEditAreaFocused && !inModal && !inPromotePopover && !inAddColumnPopover) { 
             e.preventDefault();
             state.editModeActive = false;
         }
     }
 
-    // Keyboard interaction for expand/collapse and sortable headers
     if ((e.key === 'Enter' || e.key === ' ') && 
         (e.target.matches('.expandable[role="button"]') || e.target.matches('th[role="button"]'))) {
         e.preventDefault();
-        e.target.click(); // Simulate a click to trigger the existing action
+        e.target.click(); 
     }
   };
 
 
-// NEW: Robust CSV Parsing Logic
-// Helper to process a single cell's value, attempting JSON parsing if applicable
 function processCellValueForRecord(valueString) {
     const trimmedValue = typeof valueString === 'string' ? valueString.trim() : valueString;
     if (typeof trimmedValue === 'string' &&
@@ -1036,11 +1230,10 @@ function processCellValueForRecord(valueString) {
             return JSON.parse(trimmedValue);
         } catch (e1) {
             try {
-                // Attempt to fix common "double quote escaping" issue
                 const repairedJSONString = trimmedValue.replace(/""/g, '"');
                 return JSON.parse(repairedJSONString);
             } catch (e2) {
-                return valueString; // Keep as original string if all parsing fails
+                return valueString; 
             }
         }
     }
@@ -1056,10 +1249,10 @@ function robustParseCSV(csvString, delimiter = '\t') {
     let inQuotedField = false;
     let i = 0;
 
-    // Normalize line endings to \n and trim whitespace from the whole string
     csvString = csvString.replace(/\r\n?/g, '\n').trim();
 
     if (csvString === "") {
+        robustParseCSV.lastHeaders = [];
         return [];
     }
 
@@ -1068,18 +1261,16 @@ function robustParseCSV(csvString, delimiter = '\t') {
 
         if (inQuotedField) {
             if (char === '"') {
-                // Check for escaped quote ("")
                 if (i + 1 < csvString.length && csvString[i + 1] === '"') {
                     currentField += '"';
-                    i++; // Consume the second quote of the pair
+                    i++; 
                 } else {
-                    // This is a closing quote for the field
                     inQuotedField = false;
                 }
             } else {
-                currentField += char; // Any character, including newline, is part of the quoted field
+                currentField += char; 
             }
-        } else { // Not in a quoted field
+        } else { 
             if (char === '"') {
                 if (currentField === "") { 
                     inQuotedField = true;
@@ -1134,47 +1325,35 @@ function robustParseCSV(csvString, delimiter = '\t') {
     
     if (headers.length > 0 && headers.every(h => h === '')) {
         console.warn("CSV Warning: All parsed headers are empty. CSV might be malformed or start with an empty line treated as headers.");
+        headers = []; 
     }
 
-    // Store last parsed headers, could be useful for "apply-json-changes"
-    robustParseCSV.lastHeaders = headers;
+    robustParseCSV.lastHeaders = headers.filter(h => h !== ''); 
     return objects;
 }
-robustParseCSV.lastHeaders = []; // Initialize static-like property
+robustParseCSV.lastHeaders = []; 
 
 
-// Delimiter detection utility
 function detectDelimiter(textSample) {
-    if (!textSample || textSample.trim() === '') return ','; // Default for empty or whitespace only
+    if (!textSample || textSample.trim() === '') return ','; 
     const firstLineBreak = textSample.indexOf('\n');
     const firstLine = firstLineBreak === -1 ? textSample.trim() : textSample.substring(0, firstLineBreak).trim();
 
-    if (firstLine.length === 0) return ','; // Default if first line is empty after trim
+    if (firstLine.length === 0) return ','; 
 
     const delimiters = [
         { char: ',', count: (firstLine.match(/,/g) || []).length },
         { char: '\t', count: (firstLine.match(/\t/g) || []).length },
         { char: '|', count: (firstLine.match(/\|/g) || []).length },
-        //{ char: ';', count: (firstLine.match(/;/g) || []).length }
-        // Add other potential delimiters here if needed
     ];
 
-    // Filter out delimiters with zero count
     const presentDelimiters = delimiters.filter(d => d.count > 0);
 
     if (presentDelimiters.length === 0) {
-        // No common delimiters found in the first line.
-        // This could be a single column CSV, or not a delimited file.
-        // Defaulting to comma; robustParseCSV should handle single columns.
         return ',';
     }
 
-    // Sort by count in descending order
     presentDelimiters.sort((a, b) => b.count - a.count);
-
-    // The delimiter with the highest count is the most likely one.
-    // Add a threshold: if the top delimiter count is very low (e.g., 1),
-    // it might be less reliable. For simplicity, we'll take the top one for now.
     return presentDelimiters[0].char;
 }
 
@@ -1182,6 +1361,7 @@ const init = async () => {
     try {
       let rawDataInput;
       let dataSuccessfullyLoaded = false;
+      robustParseCSV.lastHeaders = []; // Reset on init
 
       if (typeof jsonData !== 'undefined') {
         rawDataInput = jsonData;
@@ -1226,32 +1406,47 @@ const init = async () => {
           state.data = []; 
       }
       
+      let initialVisible = [];
+      if (robustParseCSV.lastHeaders && robustParseCSV.lastHeaders.length > 0) {
+          initialVisible = robustParseCSV.lastHeaders;
+      } else if (state.data.length > 0 && typeof state.data[0] === 'object' && state.data[0] !== null) {
+          initialVisible = Object.keys(state.data[0]);
+      }
+      state.visibleColumns = initialVisible;
+      updateAllPossibleColumns(); 
+
       if (state.data.length === 0 && typeof jsonData === 'undefined') { 
         state.showJsonModal = true;
         state.rawJsonEditContent = '';
         state.jsonValidationMessage = 'Paste JSON, CSV, or TSV data, or load from file.';
-      } else if (state.data.length > 0 && typeof state.data[0] === 'object' && state.data[0] !== null) {
-         state.visibleColumns = Object.keys(state.data[0]);
-      } else { // Data is empty or not array of objects
-         state.visibleColumns = robustParseCSV.lastHeaders.length > 0 ? robustParseCSV.lastHeaders : [];
       }
       
       state.subscribe((changedKey) => {
           const wasSqlModalVisible = !!document.querySelector('.modal[aria-labelledby="sql-modal-title"]');
           const wasJsonModalVisible = !!document.querySelector('.modal[aria-labelledby="json-modal-title"]');
+          const wasAddColumnPopoverVisible = state.showAddColumnPopover; 
+          const wasPromotePopoverVisible = state.showPromoteKeyPopover;
+          const wasCsvModalVisible = !!document.querySelector('.modal[aria-labelledby="csv-modal-title"]');
 
           render();
 
-          // Handle opening modals and setting focus
           if (state.showSqlModal && !wasSqlModalVisible) {
               openModalFocus('.modal[aria-labelledby="sql-modal-title"]');
           }
           if (state.showJsonModal && !wasJsonModalVisible) {
-              // Check if the active element is already inside the json modal (e.g., textarea from drag/drop)
               const jsonModal = document.querySelector('.modal[aria-labelledby="json-modal-title"]');
               if (!jsonModal || !jsonModal.contains(document.activeElement)) {
                 openModalFocus('.modal[aria-labelledby="json-modal-title"]');
               }
+          }
+          if (state.showAddColumnPopover && !wasAddColumnPopoverVisible) { 
+              openModalFocus('#add-column-popover');
+          }
+          if (state.showPromoteKeyPopover && !wasPromotePopoverVisible) { 
+              openModalFocus('#promote-key-popover');
+          }
+          if (state.showCsvModal && !wasCsvModalVisible) {
+              openModalFocus('.modal[aria-labelledby="csv-modal-title"]');
           }
       }); 
       
@@ -1270,7 +1465,7 @@ const init = async () => {
             if (state.rawJsonEditContent !== target.value) {
                 state.rawJsonEditContent = target.value;
             }
-            if (state.jsonValidationMessage && (state.jsonValidationMessage.includes('red') || state.jsonValidationMessage.includes('green') || state.jsonValidationMessage.startsWith("Paste") || state.jsonValidationMessage.startsWith("File loaded"))) {
+            if (state.jsonValidationMessage && (state.jsonValidationMessage.includes('red') || state.jsonValidationMessage.includes('green') || state.jsonValidationMessage.startsWith("Paste") || state.jsonValidationMessage.startsWith("File loaded") || state.jsonValidationMessage.startsWith("File dropped"))) {
                 state.jsonValidationMessage = ''; 
             }
         }
@@ -1299,7 +1494,7 @@ const init = async () => {
       });
       document.addEventListener('keydown', handleKeyboard);
       
-      render();
+      render(); 
       
     } catch (error) {
       console.error('Initialization error:', error);
@@ -1317,16 +1512,41 @@ const init = async () => {
   const handleEvent = (e) => {
     const eventTarget = e.target; 
     
+    if (state.showAddColumnPopover) {
+        const popoverElement = document.querySelector('#add-column-popover');
+        const clickedAddColumnButton = eventTarget.closest('[data-action="show-add-column-popover"]');
+        const clickedInsidePopover = popoverElement && popoverElement.contains(eventTarget);
+
+        if (!clickedInsidePopover && !clickedAddColumnButton) {
+            const cancelButton = document.querySelector('#add-column-popover .add-column-popover-cancel-btn');
+            if (cancelButton) cancelButton.click();
+            else { // Fallback
+                closeModalFocus('#add-column-popover');
+                state.showAddColumnPopover = false;
+                if(state.addColumnPopoverAnchor) state.addColumnPopoverAnchor.focus();
+                state.addColumnPopoverAnchor = null;
+            }
+        }
+    }
     if (state.showPromoteKeyPopover) {
-        const popoverElement = document.querySelector('.promote-key-popover');
+        const popoverElement = document.querySelector('#promote-key-popover');
         const clickedPromoteButton = eventTarget.closest('[data-action="promote-value"]');
         const clickedInsidePopover = popoverElement && popoverElement.contains(eventTarget);
 
         if (!clickedInsidePopover && !clickedPromoteButton) {
-            state.showPromoteKeyPopover = false;
-            state.promoteKeyPopoverContext = null;
+            const cancelButton = document.querySelector('#promote-key-popover .promote-popover-cancel-btn');
+             if (cancelButton) cancelButton.click();
+             else {
+                closeModalFocus('#promote-key-popover');
+                state.showPromoteKeyPopover = false;
+                if(state.promoteKeyPopoverContext && state.promoteKeyPopoverContext.triggerElement) {
+                     state.promoteKeyPopoverContext.triggerElement.focus();
+                }
+                state.promoteKeyPopoverContext = null;
+             }
         }
     }
+
 
     let target = eventTarget; 
     let action = target.dataset.action;
@@ -1378,7 +1598,7 @@ const init = async () => {
         
       case 'expand-all':
         state.data.forEach((rowData, rowIndex) => {
-          const expandablePaths = getAllObjectPaths(rowData); // Get all paths to objects/arrays
+          const expandablePaths = getAllObjectPaths(rowData); 
           expandablePaths.forEach(itemPath => {
             state.expandedPaths.add(`${rowIndex}-${itemPath}`);
           });
@@ -1397,12 +1617,16 @@ const init = async () => {
 
       case 'toggle-edit-mode':
         state.editModeActive = !state.editModeActive;
-        if (!state.editModeActive && state.showPromoteKeyPopover) {
-            state.showPromoteKeyPopover = false;
-            state.promoteKeyPopoverContext = null;
+        if (!state.editModeActive) { 
+            if (state.showPromoteKeyPopover) {
+                state.showPromoteKeyPopover = false;
+                state.promoteKeyPopoverContext = null;
+            }
+            if (state.showAddColumnPopover) {
+                state.showAddColumnPopover = false;
+                state.addColumnPopoverAnchor = null;
+            }
         }
-        // If edit mode is toggled, re-render to add/remove draggable attributes and listeners
-        // The render() call is already triggered by state change.
         break;
 
       case 'promote-value':
@@ -1415,6 +1639,7 @@ const init = async () => {
         if (lastDotIndex === -1) { 
             if (!state.visibleColumns.includes(pathClicked)) {
                 state.visibleColumns = [...state.visibleColumns, pathClicked];
+                updateAllPossibleColumns(); 
             }
             if (state.showPromoteKeyPopover) { 
                 state.showPromoteKeyPopover = false;
@@ -1448,7 +1673,8 @@ const init = async () => {
                         pathToArrayElement: pathToArrayElement, 
                         valueFieldName: fieldName,           
                         targetElementRect: target.getBoundingClientRect(),
-                        siblingKeysAndValues
+                        siblingKeysAndValues,
+                        triggerElement: target, // Store trigger for focus restoration
                     };
                     state.showPromoteKeyPopover = true;
                     return; 
@@ -1458,6 +1684,7 @@ const init = async () => {
         
         if (!state.visibleColumns.includes(pathClicked)) {
             state.visibleColumns = [...state.visibleColumns, pathClicked];
+            updateAllPossibleColumns(); 
         }
         if (state.showPromoteKeyPopover) { 
             state.showPromoteKeyPopover = false;
@@ -1473,6 +1700,7 @@ const init = async () => {
             originalPathToValue, 
             pathToArrayElement,  
             valueFieldName,      
+            triggerElement: promoteTrigger,
         } = state.promoteKeyPopoverContext;
         
         const selectedKeyForId = target.dataset.selectedKey; 
@@ -1497,15 +1725,20 @@ const init = async () => {
 
         if (!state.visibleColumns.includes(pathToPromote)) {
             state.visibleColumns = [...state.visibleColumns, pathToPromote];
+            updateAllPossibleColumns(); 
         }
-
+        closeModalFocus('#promote-key-popover');
         state.showPromoteKeyPopover = false;
         state.promoteKeyPopoverContext = null;
+        if (promoteTrigger) requestAnimationFrame(() => promoteTrigger.focus());
         break;
 
       case 'cancel-promote-popover':
+        const promoteAnchor = state.promoteKeyPopoverContext ? state.promoteKeyPopoverContext.triggerElement : null;
+        closeModalFocus('#promote-key-popover');
         state.showPromoteKeyPopover = false;
         state.promoteKeyPopoverContext = null;
+        if (promoteAnchor) requestAnimationFrame(() => promoteAnchor.focus());
         break;
         
       case 'sort':
@@ -1526,6 +1759,7 @@ const init = async () => {
           if (state.sortBy === colToRemove) {
               state.sortBy = null; 
           }
+          // updateAllPossibleColumns(); // Not strictly needed here, as it's just hiding
           break;
         
       case 'show-sql':
@@ -1559,7 +1793,12 @@ const init = async () => {
 
       case 'show-json': 
         if (!state.showJsonModal) { 
-          state.rawJsonEditContent = state.data.length > 0 ? JSON.stringify(state.data, null, 2) : '';
+          try {
+            state.rawJsonEditContent = state.data.length > 0 ? JSON.stringify(state.data, null, 2) : '';
+          } catch (e) {
+             console.error("Error stringifying data for JSON modal:", e);
+             state.rawJsonEditContent = "Error: Could not serialize current data. Please clear and paste new data.";
+          }
           state.jsonValidationMessage = state.data.length === 0 ? 'Paste or load data.' : '';
         }
         state.showJsonModal = true;
@@ -1629,6 +1868,7 @@ const init = async () => {
             let parsedData = null;
             let parseMethod = '';
             let detectedHeaders = [];
+            robustParseCSV.lastHeaders = []; 
 
             if (currentText.trim() === '') { 
                 parsedData = []; 
@@ -1644,14 +1884,14 @@ const init = async () => {
                         parseMethod = 'JSON (single object)';
                     }
                 } catch (e) {
-                    // JSON parse failed, will try CSV/TSV
+                    // JSON parse failed
                 }
 
                 if (parsedData === null) {
                     try {
                         const delimiter = detectDelimiter(currentText.substring(0, Math.min(currentText.length, 2000)));
                         const csvObjects = robustParseCSV(currentText, delimiter); 
-                        detectedHeaders = robustParseCSV.lastHeaders; // Get headers from the parser
+                        detectedHeaders = robustParseCSV.lastHeaders; 
                         
                         if (csvObjects.length > 0 || (detectedHeaders.length > 0 && detectedHeaders.some(h => h !== ''))) {
                            parsedData = csvObjects;
@@ -1668,27 +1908,139 @@ const init = async () => {
 
             if (parsedData !== null) {
                 state.data = parsedData;
-                closeModalFocus('.modal[aria-labelledby="json-modal-title"]'); // Close focus before state change
+                closeModalFocus('.modal[aria-labelledby="json-modal-title"]'); 
                 state.showJsonModal = false;
                 state.jsonValidationMessage = '';
 
-                if (state.data.length > 0 && typeof state.data[0] === 'object' && state.data[0] !== null) {
-                    state.visibleColumns = Object.keys(state.data[0]);
-                } else { 
-                    state.visibleColumns = detectedHeaders.length > 0 ? detectedHeaders : [];
+                let newVisibleColumns = [];
+                if (detectedHeaders.length > 0) {
+                    newVisibleColumns = detectedHeaders;
+                } else if (state.data.length > 0 && typeof state.data[0] === 'object' && state.data[0] !== null) {
+                    newVisibleColumns = Object.keys(state.data[0]);
                 }
+                state.visibleColumns = newVisibleColumns;
+                updateAllPossibleColumns(); 
+
                 state.searchQuery = '';
                 state.searchResults = [];
                 state.currentSearchIndex = -1;
                 state.expandedPaths.clear();
                 state.sortBy = null;
-                state.notify('data'); // Notify specifically for data change to ensure all dependent states refresh
+                state.notify('data'); 
                 console.log(`Data applied successfully using ${parseMethod} parser.`);
             } else {
                 state.jsonValidationMessage = '<span style="color: red;">Cannot apply: Invalid data format. Not recognized as JSON, CSV, or TSV.</span>';
             }
         }
         break;
+
+    // NEW cases for Add Column Popover
+    case 'show-add-column-popover':
+        state.addColumnPopoverAnchor = target;
+        state.showAddColumnPopover = true;
+        break;
+    case 'cancel-add-column-popover':
+        const addColumnAnchor = state.addColumnPopoverAnchor;
+        closeModalFocus('#add-column-popover');
+        state.showAddColumnPopover = false;
+        state.addColumnPopoverAnchor = null;
+        if (addColumnAnchor) requestAnimationFrame(() => addColumnAnchor.focus());
+        break;
+    case 'add-column-from-popover':
+        const columnToAdd = target.dataset.columnToAdd;
+        if (columnToAdd && !state.visibleColumns.includes(columnToAdd)) {
+            state.visibleColumns = [...state.visibleColumns, columnToAdd];
+            // No need to updateAllPossibleColumns here as it's already in the master list.
+        }
+
+        break;
+    
+    // Inside handleEvent()
+      case 'reset-view':
+        // 1. Clear UI interaction states
+        state.searchQuery = '';
+        const searchBox = document.getElementById('json-browser-search-box');
+        if (searchBox) searchBox.value = '';
+        state.searchResults = [];
+        state.currentSearchIndex = -1;
+        state.sortBy = null;
+        state.expandedPaths.clear();
+
+        // 2. Determine the "initial" visible columns based on CURRENT data and last CSV parse context
+        let resetToColumns = [];
+        // Priority: Headers from last CSV/TSV parse if they exist and are meaningful
+        // (robustParseCSV.lastHeaders reflects the headers of the *currently loaded* data if it was CSV/TSV)
+        if (robustParseCSV.lastHeaders && robustParseCSV.lastHeaders.length > 0 && robustParseCSV.lastHeaders.some(h => h && h.trim() !== '')) {
+            resetToColumns = robustParseCSV.lastHeaders.filter(h => h && h.trim() !== '');
+        } 
+        // Fallback: Keys from the first data object if data exists
+        else if (state.data.length > 0 && state.data[0] && typeof state.data[0] === 'object' && state.data[0] !== null) {
+            resetToColumns = Object.keys(state.data[0]);
+        }
+        // resetToColumns will be an empty array if no data or no valid headers.
+
+        state.visibleColumns = [...resetToColumns];
+        
+        // 3. Update the master list of all possible columns
+        // This ensures the "Add Column" popover is accurate after reset
+        updateAllPossibleColumns(); 
+        
+        // Note: state.showPaths, state.sqlDialect, state.initialVisibleColumns are not touched here.
+        // state.initialVisibleColumns is less relevant if we re-derive columns on reset like this.
+        // If you still want to use it, you'd do:
+        // state.visibleColumns = [...state.initialVisibleColumns];
+        // But the above re-derivation is more aligned with "reset based on current data's natural columns".
+
+        // No need to call state.notify() explicitly for each, as setting these state properties
+        // will trigger the subscription and re-render. If any of these were direct object/array
+        // mutations not caught by the proxy, then notify would be needed.
+        break;    
+
+            case 'show-csv':
+        state.csvOutputContent = generateCSV();
+        state.showCsvModal = true;
+        break;
+      case 'close-csv':
+        closeModalFocus('.modal[aria-labelledby="csv-modal-title"]');
+        state.showCsvModal = false;
+        break;
+      case 'copy-csv':
+        {
+          const csvOutputArea = document.getElementById('csv-output-area');
+          if (csvOutputArea) {
+            navigator.clipboard.writeText(csvOutputArea.value).then(() => {
+              target.textContent = 'Copied!';
+              setTimeout(() => { target.textContent = 'Copy CSV'; }, 2000);
+            }).catch(err => {
+              console.error('Failed to copy CSV: ', err);
+              target.textContent = 'Failed!';
+              setTimeout(() => { target.textContent = 'Copy CSV'; }, 2000);
+            });
+          }
+        }
+        break;
+
+      case 'download-csv':
+        {
+          const csvContent = state.csvOutputContent; // Or re-generate: generateCSV()
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement("a");
+          if (link.download !== undefined) { // Feature detection
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", "export.csv"); // Filename for download
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          } else {
+            // Fallback for browsers that don't support download attribute
+            alert("CSV download not supported in this browser. Please use 'Copy CSV'.");
+          }
+        }
+        break;
+
     }
   };
 
@@ -1697,5 +2049,3 @@ if (typeof jsonData === 'undefined' && (document.readyState === 'loading' || doc
 } else {
     init(); 
 }
-
-// --- END OF FILE basic.js ---

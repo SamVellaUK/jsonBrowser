@@ -1,6 +1,4 @@
-# HTML-Adv Data Viewer for DataGrip
-
-A custom data extractor script for [DataGrip](https://www.jetbrains.com/datagrip/) designed to provide a rich, interactive data exploration experience — particularly well-suited for inspecting nested structures like JSON and XML.
+# HTML-Adv Data Viewer
 
 ---
 
@@ -19,20 +17,9 @@ A custom data extractor script for [DataGrip](https://www.jetbrains.com/datagrip
 
 ---
 
-## 🛠️ Usage
-
-1. Open DataGrip.
-2. Navigate to **File → Settings → Tools → Data Extractors**.
-3. Click **+** to add a new extractor.
-4. Set the name (e.g. `HTML Advanced Viewer`) and select the file type as `*.html`.
-5. Paste in the contents of `HTML-Adv.html.groovy`.
-6. Run any SQL query and export the results using the extractor.
-
----
-
 ## 📦 Intended Use Cases
 
-- Data engineers debugging embedded JSON in PostgreSQL rows
+- Data engineers debugging embedded JSON in Database tables
 - Analysts working with denormalized structures
 - Developers exploring deeply nested response payloads
 - Fast visual validation of stringified object fields

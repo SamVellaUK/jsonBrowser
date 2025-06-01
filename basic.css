@@ -513,3 +513,13 @@ input[type="file"]:focus + button {
   /* General style above should cover, but can add specific overrides here */
   background-color: #e9ecef; /* Add a background change for better visibility */
 }
+/* In Special Cell/Content Styling or a new section */
+.value-special.value-null,
+.value-special.value-undefined {
+  color: #999; /* Light grey */
+}
+/* Ensure highlighting within special text is still visible */
+.value-special .highlight {
+  color: initial; /* Or specific color if grey clashes */
+  /* background remains from .highlight */
+}
