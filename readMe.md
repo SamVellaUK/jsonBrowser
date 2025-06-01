@@ -1,4 +1,23 @@
-# HTML-Adv Data Viewer
+# jsonBrowser
+
+---
+
+## Introduction
+
+Sick of having to pick apart JSON data buried in your database tables? Hate wasting time trying to figure out how to get a SQL query to properly parse the JSON?
+
+Copy and Paste (or save to file) your query data and load it into jsonBrowser. 
+
+- Navigate through the **nested objects**
+- Use the **Search function** to find Keys and Values at any depth
+- Use the edit function to **promote/flatten elements** to the top level
+- Hit the SQL button to get a usable **SQL Query** you can feedback to your SQL Editor
+
+
+Fully offline.
+No External JavaScript Libraries 
+Zero privacy issues
+
 
 ---
 
@@ -6,6 +25,8 @@
 
 Download the jsonBrowser.html file from the repo root directory and open in your browser locally.
 The application is completely self contained, there are no external dependancies and all processing is done locally
+
+See userguide.md in the Documentation for more info. 
 
 ---
 
