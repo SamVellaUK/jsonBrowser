@@ -38,17 +38,27 @@ function executeSearchLogic(calledFromEnterInSearchBox = false) {
         state.searchResults = [];
         state.currentSearchIndex = -1;
         lastExecutedSearchQuery = null; 
-        state.notify('searchResults');
+        state.notify('searchResults'); // This will also trigger re-render using the new currentSearchIndex
     } else {
         state.searchResults = performSearch(state.data, queryToSearch);
+        const oldSearchIndex = state.currentSearchIndex;
         state.currentSearchIndex = state.searchResults.length > 0 ? 0 : -1;
         lastExecutedSearchQuery = queryToSearch;
         
+        state.notify('searchResults'); // Notifies about the new list and its length.
+        // If currentSearchIndex changed and searchResults notification doesn't implicitly handle it for render, notify explicitly.
+        // However, usually a 'searchResults' change implies re-evaluation of highlights based on currentSearchIndex.
+        // For robustness, if currentSearchIndex changed meaningfully (e.g. from -1 to 0, or 0 to -1)
+        // and the 'searchResults' notification isn't guaranteed to refresh highlighting logic for the index:
+        if (state.currentSearchIndex !== oldSearchIndex && state.currentSearchIndex !== -1) { // Check if it actually changed to a valid index
+             // state.notify('currentSearchIndex'); // Potentially redundant if render() always uses latest state.currentSearchIndex
+                                                 // when 'searchResults' changes. Let's assume render is robust.
+        }
+
         if (state.searchResults.length > 0 && state.currentSearchIndex !== -1) {
             expandToResult(state.searchResults[state.currentSearchIndex]);
-        } else {
-            state.notify('searchResults');
         }
+        // No explicit 'else { state.notify('searchResults'); }' needed here as it's covered by the initial notify or the one above.
     }
     // Blurring is now handled by the explicit action callers (Enter in box, Search button)
 }
@@ -65,11 +75,10 @@ const handleKeyboard = (e) => {
 
   // CTRL+F / CMD+F to focus search box
   if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-    // Prevent browser's default find if not in a textarea where it's expected
     if (!jsonEditAreaFocused && !e.target.matches('textarea:not(#json-browser-search-box)')) {
         e.preventDefault();
         focusSearchBox();
-        return; // Action handled
+        return; 
     }
   }
 
@@ -81,6 +90,7 @@ const handleKeyboard = (e) => {
     } else if (state.searchResults.length > 0 && lastExecutedSearchQuery !== null) {
       e.preventDefault();
       state.currentSearchIndex = (state.currentSearchIndex + 1) % state.searchResults.length;
+      state.notify('currentSearchIndex'); // Notify that the active search result index has changed
       expandToResult(state.searchResults[state.currentSearchIndex]);
     }
   } else if (e.key === 'Escape') {
@@ -91,9 +101,9 @@ const handleKeyboard = (e) => {
         state.searchResults = [];
         state.currentSearchIndex = -1;
         lastExecutedSearchQuery = null; 
-        state.notify('searchResults');
-        blurSearchBox(); // Optional: Blur on escape from search box
-    } else if (state.showAddColumnPopover) { /* ... existing escape logic ... */ 
+        state.notify('searchResults'); // Covers currentSearchIndex update too
+        blurSearchBox(); 
+    } else if (state.showAddColumnPopover) { 
         e.preventDefault();
         const cancelButton = document.querySelector('#add-column-popover .add-column-popover-cancel-btn');
         if (cancelButton) cancelButton.click();
@@ -104,7 +114,7 @@ const handleKeyboard = (e) => {
             state.addColumnPopoverAnchor = null;
             state.notify('showAddColumnPopover');
         }
-    } else if (state.showPromoteKeyPopover) { /* ... existing escape logic ... */ 
+    } else if (state.showPromoteKeyPopover) { 
         e.preventDefault();
         const cancelButton = document.querySelector('#promote-key-popover .promote-popover-cancel-btn');
         if (cancelButton) cancelButton.click();
@@ -117,15 +127,15 @@ const handleKeyboard = (e) => {
             state.promoteKeyPopoverContext = null;
             state.notify('showPromoteKeyPopover');
         }
-    } else if (state.showSqlModal && inModal) { /* ... existing escape logic ... */ 
+    } else if (state.showSqlModal && inModal) { 
         e.preventDefault();
         closeModalFocus('.modal[aria-labelledby="sql-modal-title"]');
         state.showSqlModal = false; state.notify('showSqlModal');
-    } else if (state.showCsvModal && inModal) { /* ... existing escape logic ... */ 
+    } else if (state.showCsvModal && inModal) { 
         e.preventDefault();
         closeModalFocus('.modal[aria-labelledby="csv-modal-title"]');
         state.showCsvModal = false; state.notify('showCsvModal');
-    } else if (state.showJsonModal && inModal && !jsonEditAreaFocused) { /* ... existing escape logic ... */ 
+    } else if (state.showJsonModal && inModal && !jsonEditAreaFocused) { 
         e.preventDefault();
         closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
         state.showJsonModal = false; state.jsonValidationMessage = '';
@@ -148,14 +158,13 @@ const handleKeyboard = (e) => {
 const handleEvent = (e) => {
   const eventTarget = e.target;
 
-  // Popover closing logic (unchanged)
   if (state.showAddColumnPopover) {
       const popoverElement = document.querySelector('#add-column-popover');
       const clickedAddColumnButton = eventTarget.closest('[data-action="show-add-column-popover"]');
       const clickedInsidePopover = popoverElement && popoverElement.contains(eventTarget);
       if (!clickedInsidePopover && !clickedAddColumnButton) {
           const cancelButton = document.querySelector('#add-column-popover .add-column-popover-cancel-btn');
-          if (cancelButton) cancelButton.click(); else { /* ... close logic ... */ state.notify('showAddColumnPopover');}
+          if (cancelButton) cancelButton.click(); else { closeModalFocus('#add-column-popover'); state.showAddColumnPopover = false; if (state.addColumnPopoverAnchor) state.addColumnPopoverAnchor.focus(); state.addColumnPopoverAnchor = null; state.notify('showAddColumnPopover');}
       }
   }
   if (state.showPromoteKeyPopover) {
@@ -164,7 +173,7 @@ const handleEvent = (e) => {
       const clickedInsidePopover = popoverElement && popoverElement.contains(eventTarget);
       if (!clickedInsidePopover && !clickedPromoteButton) {
           const cancelButton = document.querySelector('#promote-key-popover .promote-popover-cancel-btn');
-           if (cancelButton) cancelButton.click(); else { /* ... close logic ... */ state.notify('showPromoteKeyPopover');}
+           if (cancelButton) cancelButton.click(); else { closeModalFocus('#promote-key-popover'); state.showPromoteKeyPopover = false; if (state.promoteKeyPopoverContext && state.promoteKeyPopoverContext.triggerElement) state.promoteKeyPopoverContext.triggerElement.focus(); state.promoteKeyPopoverContext = null; state.notify('showPromoteKeyPopover');}
       }
   }
 
@@ -180,20 +189,20 @@ const handleEvent = (e) => {
   const { path, row, column } = target.dataset;
 
   switch (action) {
-    case 'search': // From input event on search box
+    case 'search': 
       if (state.searchQuery !== target.value) {
         state.searchQuery = target.value;
         if (state.searchQuery.trim() === '') {
             state.searchResults = [];
             state.currentSearchIndex = -1;
             lastExecutedSearchQuery = null;
-            state.notify('searchResults');
+            state.notify('searchResults'); // Covers currentSearchIndex update
         } else {
             debouncedExecuteSearch();
         }
       }
       break;
-    case 'execute-search': // From Search button click
+    case 'execute-search': 
         const searchInput = document.getElementById('json-browser-search-box');
         if (searchInput && state.searchQuery !== searchInput.value) {
             state.searchQuery = searchInput.value;
@@ -201,18 +210,17 @@ const handleEvent = (e) => {
         executeSearchLogic(false); 
         blurSearchBox();           
         break;
-    
-    // --- All other cases remain the same as your last complete version ---
-    // Make sure state.notify('relevantProperty') is called after state changes.
     case 'search-next':
       if (state.searchResults.length > 0) {
         state.currentSearchIndex = (state.currentSearchIndex + 1) % state.searchResults.length;
+        state.notify('currentSearchIndex'); // Notify that the active search result index has changed
         expandToResult(state.searchResults[state.currentSearchIndex]);
       }
       break;
     case 'search-prev':
       if (state.searchResults.length > 0) {
         state.currentSearchIndex = (state.currentSearchIndex - 1 + state.searchResults.length) % state.searchResults.length;
+        state.notify('currentSearchIndex'); // Notify that the active search result index has changed
         expandToResult(state.searchResults[state.currentSearchIndex]);
       }
       break;
@@ -239,10 +247,10 @@ const handleEvent = (e) => {
     case 'toggle-edit-mode':
       state.editModeActive = !state.editModeActive;
       if (!state.editModeActive) {
-          if (state.showPromoteKeyPopover) { state.showPromoteKeyPopover = false; state.promoteKeyPopoverContext = null; }
-          if (state.showAddColumnPopover) { state.showAddColumnPopover = false; state.addColumnPopoverAnchor = null; }
+          if (state.showPromoteKeyPopover) { state.showPromoteKeyPopover = false; state.promoteKeyPopoverContext = null; state.notify('showPromoteKeyPopover'); }
+          if (state.showAddColumnPopover) { state.showAddColumnPopover = false; state.addColumnPopoverAnchor = null; state.notify('showAddColumnPopover'); }
       }
-      state.notify('editModeActive'); // Notifying about editModeActive itself
+      state.notify('editModeActive'); 
       break;
     case 'promote-value':
       const pathClicked = target.dataset.pathToValue;
@@ -340,8 +348,9 @@ const handleEvent = (e) => {
     case 'remove-column-header':
         const colToRemove = decodeURIComponent(target.dataset.column);
         state.visibleColumns = state.visibleColumns.filter(c => c !== colToRemove);
-        if (state.sortBy === colToRemove) { state.sortBy = null; state.sortDirection = 'asc'; }
-        state.notify('visibleColumns');
+        if (state.sortBy === colToRemove) { state.sortBy = null; state.sortDirection = 'asc'; } // Reset sort if sorted column is removed
+        state.notify('visibleColumns'); // Notify about visibleColumns change
+        state.notify('sort'); // Also notify sort, in case sortBy was reset
         break;
     case 'show-sql': state.showSqlModal = true; state.notify('showSqlModal'); break;
     case 'close-sql':
@@ -374,7 +383,7 @@ const handleEvent = (e) => {
         state.jsonValidationMessage = state.data.length === 0 ? 'Paste or load data.' : '';
       }
       state.showJsonModal = true;
-      state.notify('showJsonModal'); // This will trigger render and openModalFocus if needed
+      state.notify('showJsonModal'); 
       break;
     case 'close-json':
       closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
@@ -419,8 +428,8 @@ const handleEvent = (e) => {
       } catch (err) {
         state.jsonValidationMessage = `<span style="color: red;">Invalid JSON: ${err.message}</span>`;
       }
-      state.notify('jsonValidationMessage'); // Notifying jsonValidationMessage to re-render it
-      state.notify('rawJsonEditContent');   // Also re-render the text area with prettified content
+      state.notify('jsonValidationMessage'); 
+      state.notify('rawJsonEditContent');   
       break;
     case 'apply-json-changes':
       {
@@ -569,7 +578,7 @@ const init = async () => {
               const parsedJsonAttempt = JSON.parse(rawDataInput);
               if (Array.isArray(parsedJsonAttempt)) state.data = parsedJsonAttempt;
               else if (typeof parsedJsonAttempt === 'object' && parsedJsonAttempt !== null) state.data = [parsedJsonAttempt];
-              else {
+              else { // If not array or object, try CSV/TSV (e.g. if it's just a string "foo" which is valid JSON)
                   const delimiter = detectDelimiter(rawDataInput.substring(0, Math.min(rawDataInput.length, 2000)));
                   state.data = robustParseCSV(rawDataInput, delimiter);
               }
@@ -577,7 +586,7 @@ const init = async () => {
           } catch (e) {
               console.warn("Initial data (string) parsing as JSON failed, trying CSV/TSV.", e);
               const delimiter = detectDelimiter(rawDataInput.substring(0, Math.min(rawDataInput.length, 2000)));
-              state.data = robustParseCSV(rawDataInput, delimiter);
+              state.data = robustParseCSV(rawDataInput, delimiter); // robustParseCSV handles empty/malformed
               dataSuccessfullyLoaded = true;
           }
       } else if (typeof rawDataInput === 'object' && rawDataInput !== null) {
@@ -604,36 +613,43 @@ const init = async () => {
         const wasSqlModalVisible = !!document.querySelector('.modal[aria-labelledby="sql-modal-title"]');
         const wasJsonModalVisible = !!document.querySelector('.modal[aria-labelledby="json-modal-title"]');
         const wasCsvModalVisible = !!document.querySelector('.modal[aria-labelledby="csv-modal-title"]');
-        const wasAddColumnPopoverVisible = state.showAddColumnPopover;
-        const wasPromotePopoverVisible = state.showPromoteKeyPopover;
-
+        const wasAddColumnPopoverVisible = !!document.getElementById('add-column-popover'); // Check actual element existence
+        const wasPromotePopoverVisible = !!document.getElementById('promote-key-popover'); // Check actual element existence
         
         render();
 
         if (state.showSqlModal && !wasSqlModalVisible) openModalFocus('.modal[aria-labelledby="sql-modal-title"]');
         if (state.showJsonModal && !wasJsonModalVisible) {
             const jsonModal = document.querySelector('.modal[aria-labelledby="json-modal-title"]');
+            // Only focus if the modal itself or one of its children doesn't already have focus
             if (!jsonModal || !jsonModal.contains(document.activeElement)) {
                 openModalFocus('.modal[aria-labelledby="json-modal-title"]');
             }
         }
         if (state.showCsvModal && !wasCsvModalVisible) openModalFocus('.modal[aria-labelledby="csv-modal-title"]');
-        if (state.showAddColumnPopover && !wasAddColumnPopoverVisible) openModalFocus('#add-column-popover');
-        if (state.showPromoteKeyPopover && !wasPromotePopoverVisible) openModalFocus('#promote-key-popover');
+        // For popovers, focus logic is often tied to their anchor or first focusable element within.
+        // openModalFocus for popovers should be called after they are rendered and visible.
+        if (state.showAddColumnPopover && !wasAddColumnPopoverVisible) {
+             requestAnimationFrame(() => openModalFocus('#add-column-popover'));
+        }
+        if (state.showPromoteKeyPopover && !wasPromotePopoverVisible) {
+            requestAnimationFrame(() => openModalFocus('#promote-key-popover'));
+        }
     });
 
     document.addEventListener('click', handleEvent);
     document.addEventListener('input', (e) => {
       const target = e.target;
       if (target.id === 'json-browser-search-box') {
-          handleEvent(e); // Let handleEvent manage the 'search' action and debouncing
+          handleEvent(e); 
       } else if (target.id === 'json-edit-area') {
           if (state.rawJsonEditContent !== target.value) {
               state.rawJsonEditContent = target.value;
           }
-          if (state.jsonValidationMessage && (state.jsonValidationMessage.includes('red') || state.jsonValidationMessage.includes('green') || state.jsonValidationMessage.startsWith("Paste") || state.jsonValidationMessage.startsWith("File loaded") || state.jsonValidationMessage.startsWith("File dropped"))) {
-              state.jsonValidationMessage = '';
-              state.notify('jsonValidationMessage');
+          // Clear validation message on input if it's an error/success message or initial prompt
+          if (state.jsonValidationMessage && (state.jsonValidationMessage.includes('color: red') || state.jsonValidationMessage.includes('color: green') || state.jsonValidationMessage.startsWith("Paste") || state.jsonValidationMessage.startsWith("File loaded") || state.jsonValidationMessage.startsWith("File dropped"))) {
+              state.jsonValidationMessage = ''; // Just clear, don't notify yet, render will pick it up or further actions.
+              state.notify('jsonValidationMessage'); // Explicitly notify to clear message from UI
           }
       }
     });
@@ -648,23 +664,25 @@ const init = async () => {
                   if (loadEvent.target && typeof loadEvent.target.result === 'string') {
                       state.rawJsonEditContent = loadEvent.target.result;
                       state.jsonValidationMessage = 'File loaded. Validate JSON or Apply & Close.';
-                      state.notify('fileLoaded');
+                       // Notify both raw content and validation message to ensure UI updates
+                      state.notify('rawJsonEditContent');
+                      state.notify('jsonValidationMessage'); 
                   } else {
                       state.jsonValidationMessage = '<span style="color: red;">Error: Could not read file content.</span>';
                       state.notify('jsonValidationMessage');
                   }
-                  target.value = '';
+                  target.value = ''; // Reset file input
               };
               reader.onerror = () => {
                   state.jsonValidationMessage = '<span style="color: red;">Error reading file.</span>';
                   state.notify('jsonValidationMessage');
-                  target.value = '';
+                  target.value = ''; // Reset file input
               };
               reader.readAsText(file);
           }
       }
     });
-    document.addEventListener('keydown', handleKeyboard); // Global keydown listener
+    document.addEventListener('keydown', handleKeyboard); 
     render(); 
   } catch (error) {
     console.error('Initialization error:', error);

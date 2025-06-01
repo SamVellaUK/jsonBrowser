@@ -6,14 +6,14 @@ async function combineFiles() {
     try {
         const scriptDir = __dirname;
 
-        const htmlFilePath = path.join(scriptDir, 'jsonBrowser.html');
-        const cssFilePath = path.join(scriptDir, 'basic.css');
+        const htmlFilePath = path.join(scriptDir, '../jsonBrowser/jsonBrowser.html');
+        const cssFilePath = path.join(scriptDir, '../jsonBrowser/jsonBrowser.css');
         
-        const sqlGenFilePath = path.join(scriptDir, 'sqlGenerator.js');
-        const stateJsFilePath = path.join(scriptDir, 'state.js');
-        const utilsJsFilePath = path.join(scriptDir, 'utils.js');
-        const uiJsFilePath = path.join(scriptDir, 'ui.js');
-        const entryPointJsFilePath = path.join(scriptDir, 'basic.js');
+        const sqlGenFilePath = path.join(scriptDir, '../jsonBrowser/sqlGenerator.js');
+        const stateJsFilePath = path.join(scriptDir, '../jsonBrowser/state.js');
+        const utilsJsFilePath = path.join(scriptDir, '../jsonBrowser/utils.js');
+        const uiJsFilePath = path.join(scriptDir, '../jsonBrowser/ui.js');
+        const entryPointJsFilePath = path.join(scriptDir, '../jsonBrowser/jsonBrowser.js');
 
         const outputFilePath = path.join(scriptDir, 'jsonBrowser_standalone.html');
 
@@ -69,13 +69,13 @@ ${entryPointJsContent}
 `;
 
         htmlContent = htmlContent.replace(
-            /<link\s+rel="stylesheet"\s+href="basic\.css"\s*\/?>/i,
+            /<link\s+rel="stylesheet"\s+href="jsonbrowser\.css"\s*\/?>/i,
             `<style>\n${cssContent}\n</style>`
         );
 
         htmlContent = htmlContent.replace(
             // Match the script tag that loads basic.js (your entry point for development)
-            /<script\s+type="module"\s+src="basic\.js"\s*><\/script>/i,
+            /<script\s+type="module"\s+src="jsonbrowser\.js"\s*><\/script>/i,
             () => `<script type="module">\n${combinedJsContent}\n</script>`
         );
         // If your HTML directly loads other JS files during development, you'd remove those too.

@@ -3,13 +3,13 @@
 /* =============================================
    Global & Body Styles
    ============================================= */
-* { 
-  box-sizing: border-box; 
+* {
+  box-sizing: border-box;
 }
 
-body { 
-  font-family: 'Consolas', monospace; 
-  margin: 0; 
+body {
+  font-family: 'Consolas', monospace;
+  margin: 0;
   padding: 20px;
   background: #f8f9fa;
 }
@@ -19,19 +19,19 @@ body {
    ============================================= */
 
 /* Header Area */
-.header { 
-  position: sticky; 
+.header {
+  position: sticky;
   top: 0;
   background: #fff;
-  padding: 10px 15px; /* Adjusted padding */
+  padding: 10px 15px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   margin-bottom: 20px;
   display: flex;
   gap: 15px; /* Space between groups */
-  align-items: center; 
+  align-items: center;
   flex-wrap: wrap; /* Allow groups to wrap */
-  z-index: 200; 
+  z-index: 200;
 }
 
 /* Header Control Groups */
@@ -41,12 +41,17 @@ body {
   display: flex;
   align-items: center;
   gap: 8px; /* Space between items within a group */
-  flex-wrap: nowrap; 
+  flex-wrap: nowrap; /* Default, buttons within a group don't wrap unless specified in media query */
 }
 
 .search-group {
   flex-grow: 1; /* Allow search group to take more space */
   min-width: 280px; /* Minimum width for search group */
+}
+
+.view-controls-group,
+.function-controls-group {
+  flex-shrink: 0; /* Prevent these groups from shrinking excessively */
 }
 
 /* Responsive adjustments for header groups */
@@ -70,16 +75,15 @@ body {
     }
 }
 
-
 /* Scrollable viewport for the main table */
-.json-table { 
+.json-table {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   max-height: calc(100vh - 120px); /* Adjusted based on typical header height */
-  overflow-y: auto; 
-  overflow-x: auto; 
-  width: 100%;      
+  overflow-y: auto;
+  overflow-x: auto;
+  width: 100%;
 }
 
 /* Modal Container */
@@ -93,7 +97,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000; 
+  z-index: 1000;
 }
 
 /* =============================================
@@ -102,17 +106,17 @@ body {
 
 /* Generic Button Base Style for Header */
 .header button {
-  padding: 7px 12px; /* Slightly adjusted padding */
-  margin: 0; 
+  padding: 7px 12px;
+  margin: 0;
   border: 1px solid transparent;
-  border-radius: 5px; /* Slightly smaller radius */
+  border-radius: 5px;
   color: white;
   cursor: pointer;
   font-size: 12px;
   font-weight: 500;
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-  white-space: nowrap; 
-  line-height: 1.5; /* Ensure text is vertically centered well */
+  white-space: nowrap;
+  line-height: 1.5;
 }
 
 .header button:disabled {
@@ -125,18 +129,18 @@ body {
 
 /* Search Group Styles */
 .search-box {
-  flex-grow: 1; 
-  min-width: 150px; /* Reduced min-width to allow more flexibility */
+  flex-grow: 1;
+  min-width: 150px;
   padding: 8px 12px;
-  border: 2px solid #ced4da; /* Softer border */
+  border: 2px solid #ced4da;
   border-radius: 5px;
-  font-size: 13px; /* Slightly smaller font */
+  font-size: 13px;
 }
 
 .search-box:focus {
   outline: none;
-  border-color: #80bdff; /* Standard Bootstrap focus blue */
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); 
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
 .search-button { /* Dedicated Search Button */
@@ -148,48 +152,17 @@ body {
   border-color: #0056b3;
 }
 
-.search-nav button { /* Prev/Next */
-  background-color: #6c757d; /* Grey */
-  border-color: #6c757d;
-  width: 30px; /* Adjusted size */
-  height: 30px; 
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.search-nav button:hover {
-  background-color: #5a6268;
-  border-color: #545b62;
-}
-
-/* Header Control Groups */
-.search-group,
-.view-controls-group,
-.function-controls-group {
-  display: flex;
-  align-items: center;
-  gap: 8px; /* Space between items within a group */
-  flex-wrap: nowrap; 
-}
-
-/* NEW or MODIFIED if .search-nav was implicitly styled */
 .search-nav {
-  display: flex; /* Lays out its children (the buttons) in a row */
-  align-items: center; /* Vertically aligns the buttons if their heights differed */
+  display: flex;
+  align-items: center;
   gap: 4px; /* Adds a small 4px gap between the previous and next buttons */
 }
 
-.search-group {
-  flex-grow: 1; 
-  min-width: 280px; 
-}
-
 .search-nav button { /* Prev/Next */
   background-color: #6c757d; /* Grey */
   border-color: #6c757d;
-  width: 30px; 
-  height: 30px; 
+  width: 30px;
+  height: 30px;
   padding: 0;
   display: flex;
   align-items: center;
@@ -210,10 +183,9 @@ body {
   border-color: #10707f;
 }
 .view-controls-group button.active {
-  background-color: #138496; 
+  background-color: #138496;
   box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
 }
-
 
 /* Function Controls Group Styles (e.g., for actions, data manipulation) */
 .function-controls-group button {
@@ -229,7 +201,7 @@ body {
 .function-controls-group .edit-mode-btn {
   background-color: #ffc107; /* Amber/Warning */
   border-color: #ffc107;
-  color: #212529; 
+  color: #212529;
 }
 .function-controls-group .edit-mode-btn:hover {
   background-color: #e0a800;
@@ -248,6 +220,17 @@ body {
   background-color: #1baa80;
   border-color: #189c73;
 }
+/* Visibility states for Add Column button */
+.add-column-btn.hidden-button {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+.add-column-btn.visible { /* May not be strictly necessary if default is visible */
+    visibility: visible;
+    opacity: 1;
+}
+
 .function-controls-group button[data-action="show-csv"] { /* Specific style for Export CSV */
     background-color: #fd7e14; /* Orange */
     border-color: #fd7e14;
@@ -265,10 +248,12 @@ body {
   margin-left: auto; /* Push search info to the right */
   padding: 8px 5px; /* Align vertically a bit better */
   align-self: center; /* Ensure vertical alignment with other items if header wraps */
+  min-width: 150px; /* Prevent excessive shrinking/jumping when content changes */
+  text-align: left;
 }
 
 .hidden-indicator {
-  color: #c82333; 
+  color: #c82333;
   font-size: 11px;
   margin-left: 8px;
   font-weight: bold;
@@ -279,10 +264,10 @@ body {
    ============================================= */
 
 .json-table > table {
-  width: auto; 
-  min-width: 100%; 
+  width: auto;
+  min-width: 100%;
   border-collapse: collapse;
-  table-layout: auto; 
+  table-layout: auto;
 }
 
 .json-table > table > thead > tr > th {
@@ -290,15 +275,15 @@ body {
   font-weight: 600;
   cursor: pointer;
   user-select: none;
-  position: sticky; 
-  top: 0; 
-  z-index: 100; 
-  white-space: nowrap; 
-  padding: 10px 12px; 
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  white-space: nowrap;
+  padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid #dee2e6; /* Slightly darker border */
+  border-bottom: 1px solid #dee2e6;
   font-size: 13px;
-  min-width: 150px;   
+  min-width: 150px;
   vertical-align: top;
 }
 
@@ -308,8 +293,8 @@ body {
 
 .json-table > table > thead > tr > th > div {
   display: flex;
-  align-items: center; 
-  justify-content: space-between; 
+  align-items: center;
+  justify-content: space-between;
 }
 
 .json-table > table > thead > tr > th.sorted::after {
@@ -323,23 +308,23 @@ body {
 
 th.dragging {
   opacity: 0.4;
-  background: #e9ecef !important; 
+  background: #e9ecef !important;
 }
 
 th.drag-over {
   outline: 2px dashed #007bff;
-  outline-offset: -2px; 
-  background-color: #dfefff !important; /* Lighter blue highlight */
+  outline-offset: -2px;
+  background-color: #dfefff !important;
 }
 
 .remove-col-btn-header {
   margin-left: 5px;
-  padding: 1px 5px; /* Adjusted padding */
-  font-size: 11px; /* Adjusted font size */
+  padding: 1px 5px;
+  font-size: 11px;
   line-height: 1.2;
   font-weight: bold;
   cursor: pointer;
-  background-color: #dc3545; 
+  background-color: #dc3545;
   color: white;
   border: none;
   border-radius: 3px;
@@ -347,59 +332,58 @@ th.drag-over {
 }
 
 .remove-col-btn-header:hover {
-  background-color: #c82333; 
+  background-color: #c82333;
 }
 
 .json-table > table > tbody > tr > td {
-  padding: 9px 12px; /* Slightly adjusted padding */
+  padding: 9px 12px;
   text-align: left;
-  border-bottom: 1px solid #e9ecef; /* Lighter border for rows */
+  border-bottom: 1px solid #e9ecef;
   font-size: 13px;
-  min-width: 150px;   
-  word-wrap: break-word; 
-  overflow-wrap: break-word; 
+  min-width: 150px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
   vertical-align: top;
 }
 
 .json-table > table > tbody > tr:nth-child(even) {
-  background: #f8f9fa; /* Keep subtle striping */
+  background: #f8f9fa;
 }
 
 .json-table > table > tbody > tr:hover {
-  background: #e6f7ff; /* Lighter blue hover */
+  background: #e6f7ff;
 }
 
-.row-number { 
+.row-number {
   text-align: center;
-  width: 50px !important;     
-  min-width: 50px !important;  
-  max-width: 50px !important;  
+  width: 50px !important;
+  min-width: 50px !important;
+  max-width: 50px !important;
   position: sticky;
   left: 0;
-  overflow: hidden; 
+  overflow: hidden;
   text-overflow: ellipsis;
-  white-space: normal; 
+  white-space: normal; /* Changed from nowrap to normal to allow potential wrapping if content forces it despite fixed width */
 }
 
 .json-table > table > thead > tr > th.row-number {
   font-weight: 600;
   color: #495057;
-  background: #f1f3f5; /* Slightly different background for sticky header */
-  z-index: 150; 
-  border-right: 1px solid #dee2e6; /* Add a border to separate from scrolling content */
+  background: #f1f3f5;
+  z-index: 150; /* Higher than regular th for sticky behavior */
+  border-right: 1px solid #dee2e6;
 }
 
 .json-table > table > tbody > tr > td.row-number {
-  font-weight: normal; /* Less emphasis than header */
+  font-weight: normal;
   color: #495057;
-  background: #f8f9fa; 
-  z-index: 90; 
+  background: #f8f9fa; /* Base background for row number cell */
+  z-index: 90; /* Higher than regular td for sticky behavior */
   border-right: 1px solid #e9ecef;
 }
 .json-table > table > tbody > tr:nth-child(even) > td.row-number {
   background: #e9ecef; /* Match even row striping, slightly adjusted */
 }
-
 
 /* =============================================
    Expandable / Nested Content Styles
@@ -408,13 +392,13 @@ th.drag-over {
 .expandable {
   cursor: pointer;
   position: relative;
-  background: #fff0e1; /* Lighter, warmer background */
-  border-left: 3px solid #fd7e14; /* Orange accent */
-  padding: 4px 8px; 
-  border-radius: 4px; 
-  display: inline-block; 
-  max-width: 100%; 
-  color: #543005; /* Darker text for contrast */
+  background: #fff0e1;
+  border-left: 3px solid #fd7e14;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  max-width: 100%;
+  color: #543005;
 }
 
 .expandable:hover {
@@ -423,70 +407,69 @@ th.drag-over {
 
 .toggle {
   display: inline-block;
-  width: 18px; /* Slightly smaller */
+  width: 18px;
   text-align: center;
   font-weight: bold;
-  color: #c55a11; /* Orange family for toggle */
+  color: #c55a11;
   margin-right: 6px;
 }
 
 .nested {
   max-height: 0;
-  overflow: hidden; 
-  transition: max-height 0.25s ease-out, padding 0.25s ease-out, margin 0.25s ease-out; /* Faster transition */
-  background: #fff9f2; /* Very light background for nested area */
-  border-left: 2px solid #ffac47; /* Lighter orange */
-  margin: 0; 
-  padding: 0; 
-  border-radius: 0 4px 4px 0; /* Rounded corners on one side */
+  overflow: hidden;
+  transition: max-height 0.25s ease-out, padding 0.25s ease-out, margin 0.25s ease-out;
+  background: #fff9f2;
+  border-left: 2px solid #ffac47;
+  margin: 0;
+  padding: 0;
+  border-radius: 0 4px 4px 0;
 }
 
 .nested.expanded {
-  max-height: 5000px; 
+  max-height: 5000px; /* Large enough value for content */
   padding: 8px 12px;
-  margin: 6px 0 4px 20px; /* Adjusted margin */
-  overflow-y: auto; 
+  margin: 6px 0 4px 20px;
+  overflow-y: auto;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .nested-table {
-  font-size: 12px; /* Slightly larger nested table font */
-  margin: 4px 0; 
-  width: max-content; 
-  min-width: 100%;   
-  table-layout: auto; 
-  border-collapse: collapse; /* Ensure borders are clean */
+  font-size: 12px;
+  margin: 4px 0;
+  width: max-content; /* Shrink to content width */
+  min-width: 100%;    /* But expand to fill container if content is smaller */
+  table-layout: auto;
+  border-collapse: collapse;
 }
 
 .nested-table th,
 .nested-table td {
-  padding: 5px 8px; /* Adjusted padding */
-  border: 1px solid #eee; /* Lighter borders for nested table */
-  font-size: 12px; 
-  min-width: 90px; 
+  padding: 5px 8px;
+  border: 1px solid #eee;
+  font-size: 12px;
+  min-width: 90px;
   word-wrap: break-word;
   overflow-wrap: break-word;
   vertical-align: top;
-  white-space: normal; /* Allow wrapping in nested cells */
+  white-space: normal;
 }
 .nested-table tr:last-child td {
     border-bottom: 1px solid #eee; /* Ensure last row has bottom border */
 }
 
-
 .nested-table th {
-  background: #f7f7f7; /* Lighter header for nested */
-  position: sticky; 
-  top: 0; 
-  z-index: 50; 
-  font-weight: 600; /* Bolder nested headers */
+  background: #f7f7f7;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  font-weight: 600;
   text-align: left;
 }
 
-.nested-table td.row-number { 
+.nested-table td.row-number {
   text-align: center;
-  font-weight: normal; 
-  background: #fcfcfc; 
+  font-weight: normal;
+  background: #fcfcfc;
   width: 40px !important;
   min-width: 40px !important;
   max-width: 40px !important;
@@ -497,31 +480,31 @@ th.drag-over {
    ============================================= */
 
 .highlight {
-  background: #ffc107; /* Amber highlight */
+  background: #ffc107;
   padding: 1px 3px;
   border-radius: 3px;
-  font-weight: normal; /* Normal weight for highlighted text, background is enough */
+  font-weight: normal;
   color: #333;
 }
 
 .highlight.current {
-  background: #dc3545; /* Red for current match */
+  background: #dc3545;
   color: white;
   box-shadow: 0 0 5px rgba(220, 53, 69, 0.6);
 }
 
 .path-display {
   font-size: 10px;
-  color: #6c757d; /* Grey for paths */
+  color: #6c757d;
   margin-top: 3px;
   font-style: italic;
-  word-break: break-all; 
+  word-break: break-all;
   line-height: 1.3;
 }
 
 .value-special.value-null,
 .value-special.value-undefined {
-  color: #6c757d; 
+  color: #6c757d;
   font-style: italic;
 }
 .value-special .highlight {
@@ -533,22 +516,22 @@ th.drag-over {
    ============================================= */
 
 .promote-btn {
-  margin-left: 8px; 
-  padding: 2px 6px; 
-  font-size: 10px; /* Smaller promote button */
+  margin-left: 8px;
+  padding: 2px 6px;
+  font-size: 10px;
   line-height: 1.2;
   font-weight: bold;
   cursor: pointer;
-  background-color: #28a745; 
+  background-color: #28a745;
   color: white;
   border: none;
   border-radius: 3px;
-  vertical-align: middle; 
+  vertical-align: middle;
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
-  
+
 .promote-btn:hover {
-  background-color: #218838; 
+  background-color: #218838;
   box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
 
@@ -559,12 +542,12 @@ th.drag-over {
 .modal-content {
   background: white;
   border-radius: 8px;
-  padding: 25px; /* Increased padding */
+  padding: 25px;
   max-width: 90%;
-  max-height: 90vh; /* Use vh for consistency */
+  max-height: 90vh;
   overflow: auto;
   position: relative;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.3); /* Stronger shadow for modals */
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
 
 .modal-header {
@@ -577,41 +560,39 @@ th.drag-over {
 }
 .modal-header h3 {
     margin: 0;
-    font-size: 1.25rem; /* Larger modal titles */
+    font-size: 1.25rem;
 }
 
-
 .close-btn {
-  background: transparent; /* Transparent background */
-  color: #6c757d; /* Grey color */
+  background: transparent;
+  color: #6c757d;
   border: none;
-  font-size: 1.5rem; /* Larger close icon */
+  font-size: 1.5rem;
   line-height: 1;
-  padding: 0.25rem 0.75rem; /* Adjust padding */
+  padding: 0.25rem 0.75rem;
   cursor: pointer;
   opacity: 0.7;
 }
 .close-btn:hover {
-    color: #343a40; /* Darker on hover */
+    color: #343a40;
     opacity: 1;
 }
-
 
 /* =============================================
    Output Areas (SQL, JSON Edit)
    ============================================= */
 
-.sql-output, .json-edit-output { 
+.sql-output, .json-edit-output {
   width: 100%;
-  font-family: 'Consolas', 'Menlo', 'Courier New', monospace; 
-  font-size: 13px; /* Larger font for readability */
+  font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
+  font-size: 13px;
   padding: 15px;
   border: 1px solid #ced4da;
   border-radius: 4px;
   background: #f8f9fa;
   line-height: 1.5;
 }
-  
+
 .sql-output {
   min-height: 300px;
   resize: vertical;
@@ -623,19 +604,19 @@ th.drag-over {
 
 .loading, .no-results {
   text-align: center;
-  padding: 40px 20px; /* More padding */
+  padding: 40px 20px;
   color: #6c757d;
   font-style: italic;
-  font-size: 1.1em; /* Slightly larger */
+  font-size: 1.1em;
 }
 
 .json-edit-output.drag-over-active,
 #json-modal-content.drag-over-active {
-  border: 2px dashed #007bff !important; 
-  background-color: #e9f4ff !important; /* Lighter blue background */
+  border: 2px dashed #007bff !important;
+  background-color: #e9f4ff !important;
 }
-#json-modal-content.drag-over-active { 
-    outline-offset: -10px; 
+#json-modal-content.drag-over-active {
+    outline-offset: -10px; /* Ensure outline is visible if content padding is small */
 }
 
 /* =============================================
@@ -644,30 +625,28 @@ th.drag-over {
 
 /* General Focus Styles for Interactive Elements */
 .header button:focus,
-.search-box:focus, /* Already has a good :focus style, but ensure consistency if needed */
 .remove-col-btn-header:focus,
 .promote-btn:focus,
 .close-btn:focus,
-.expandable[role="button"]:focus, 
-th[role="button"]:focus, 
+.expandable[role="button"]:focus,
+th[role="button"]:focus,
 .modal button:focus, /* Generic modal button focus */
 .modal select:focus,
 .modal textarea:focus, /* For textareas in modals like SQL, JSON */
 .promote-popover-btn:focus,
 .add-column-popover-btn:focus,
 button:focus { /* Fallback for other buttons not specifically targeted */
-  outline: 2px solid #0056b3; 
-  outline-offset: 2px; /* Slightly more offset */        
-  box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.35); 
+  outline: 2px solid #0056b3;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.35);
 }
 
-/* Override for search box if default is preferred */
+/* Override for search box as it has its own distinct focus style */
 .search-box:focus {
-  border-color: #80bdff; /* Standard Bootstrap focus blue */
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25); 
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
   outline: none; /* Remove default outline if box-shadow is used */
 }
-
 
 input[type="file"]:focus + button { /* Style for button that triggers hidden file input */
   outline: 2px solid #0056b3;
@@ -679,7 +658,7 @@ input[type="file"]:focus + button { /* Style for button that triggers hidden fil
 .json-edit-output:focus {
   border-color: #80bdff;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-  outline: none; 
+  outline: none;
 }
 
 /* Specific focus for popover buttons if needed for better visibility */
@@ -688,6 +667,7 @@ input[type="file"]:focus + button { /* Style for button that triggers hidden fil
   background-color: #e9ecef; /* Light background highlight */
   border-color: #0056b3; /* Add border color change */
 }
+
 .sr-only {
   position: absolute;
   width: 1px;
