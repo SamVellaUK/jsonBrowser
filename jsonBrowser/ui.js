@@ -40,7 +40,7 @@ function trapFocusInModal(e) {
     const modal = e.currentTarget;
     const focusableElements = Array.from(
         modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-    ).filter(el => el.offsetParent !== null && !el.disabled);
+    ).filter(el => el.offsetParent !== null && !el.disabled && el.offsetWidth > 0 && el.offsetHeight > 0); // Added visibility check
     if (focusableElements.length === 0) return;
     const firstFocusableElement = focusableElements[0];
     const lastFocusableElement = focusableElements[focusableElements.length - 1];
@@ -60,11 +60,14 @@ function trapFocusInModal(e) {
 const scrollToCurrentSearchResult = () => {
   const currentResultElement = document.querySelector('.highlight.current');
   if (currentResultElement) {
-    currentResultElement.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center', 
-      inline: 'nearest' 
-    });
+    const rect = currentResultElement.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) { 
+        currentResultElement.scrollIntoView({
+          behavior: 'smooth', 
+          block: 'center', 
+          inline: 'nearest' 
+        });
+    }
   }
 };
 
@@ -77,8 +80,8 @@ export const expandToResult = (result) => {
     pathParts.forEach((part, index) => {
       currentPath = index === 0 ? part : `${currentPath}.${part}`;
       const objectPathForExpansion = currentPath.replace(/\.(\d+)(?=\.|$)/g, '[$1]');
-      const value = getValue(state.data[result.rowIndex], objectPathForExpansion);
-      if (index < pathParts.length - 1 && value && typeof value === 'object') {
+      const valueAtPath = getValue(state.data[result.rowIndex], objectPathForExpansion);
+      if (index < pathParts.length - 1 && valueAtPath && typeof valueAtPath === 'object') {
         if (!state.expandedPaths.has(`${result.rowIndex}-${objectPathForExpansion}`)) {
             state.expandedPaths.add(`${result.rowIndex}-${objectPathForExpansion}`);
             needsExpandedPathNotify = true;
@@ -92,19 +95,6 @@ export const expandToResult = (result) => {
          needsExpandedPathNotify = true;
      }
 
-    const rootColumn = result.path.split(/[.\[]/)[0];
-    let columnChanged = false;
-    const newVisibleColumns = [...state.visibleColumns];
-
-    if (!newVisibleColumns.includes(result.path) && !newVisibleColumns.includes(rootColumn)) {
-        newVisibleColumns.push(rootColumn);
-        columnChanged = true;
-    }
-    
-    if (columnChanged) {
-        state.visibleColumns = newVisibleColumns; 
-        updateAllPossibleColumns();
-    }
 
     if (needsExpandedPathNotify) {
         state.notify('expandedPaths'); 
@@ -126,6 +116,7 @@ export const updateAllPossibleColumns = () => {
   });
   state.visibleColumns.forEach(colPath => newAllPossible.add(colPath));
   state.allPossibleColumns.forEach(colPath => newAllPossible.add(colPath));
+
   if (newAllPossible.size !== state.allPossibleColumns.size || ![...newAllPossible].every(item => state.allPossibleColumns.has(item))) {
       state.allPossibleColumns = newAllPossible;
   }
@@ -187,40 +178,65 @@ const renderHeader = () => {
     }
   ).length;
 
+  let searchInfoText;
+  if (state.searchResults.length > 0) {
+    searchInfoText = `${state.currentSearchIndex + 1} of ${state.searchResults.length}${hiddenCount > 0 ? ` (${hiddenCount} hidden)` : ''}`;
+  } else if (state.searchQuery && state.searchResults.length === 0) {
+    searchInfoText = 'No matches';
+  } else {
+    searchInfoText = `${state.data.length} rows`;
+  }
+
   return `
     <div class="header">
-      <input 
-        aria-label="Search JSON content"
-        id="json-browser-search-box" 
-        type="text" 
-        class="search-box" 
-        placeholder="Search (Press Enter)" 
-        value="${escapeStringForDataAttribute(state.searchQuery)}"
-        data-action="search"
-      >
-      <div class="search-nav">
-        <button aria-label="Previous search result" data-action="search-prev" ${state.searchResults.length === 0 ? 'disabled' : ''}>←</button>
-        <button aria-label="Next search result" data-action="search-next" ${state.searchResults.length === 0 ? 'disabled' : ''}>→</button>
+    
+      <div class="search-group">
+        <input 
+          aria-label="Search JSON content"
+          id="json-browser-search-box" 
+          type="text" 
+          class="search-box" 
+          placeholder="Search JSON (Press Enter)" 
+          value="${escapeStringForDataAttribute(state.searchQuery)}"
+          data-action="search" 
+        >
+        <button class="search-button" data-action="execute-search" aria-label="Execute search">Search</button>
+        <div class="search-nav">
+          <button aria-label="Previous search result" data-action="search-prev" ${state.searchResults.length === 0 ? 'disabled' : ''}>←</button>
+          <button aria-label="Next search result" data-action="search-next" ${state.searchResults.length === 0 ? 'disabled' : ''}>→</button>
+        </div>
+        <div class="search-info" role="status" aria-live="polite" aria-atomic="true">
+          ${searchInfoText}
+        </div>
       </div>
-      <div class="controls">
-        <button data-action="reset-view">Reset View</button>
-        <button data-action="expand-all">Expand All</button>
-        <button data-action="collapse-all">Collapse All</button>
-        <button data-action="toggle-paths" class="${state.showPaths ? 'active' : ''}">
+
+      <div class="view-controls-group">
+        <button data-action="reset-view" title="Reset view to default columns and expansion state">Reset View</button>
+        <button data-action="expand-all" title="Expand all expandable items">Expand All</button>
+        <button data-action="collapse-all" title="Collapse all expanded items">Collapse All</button>
+        <button data-action="toggle-paths" class="${state.showPaths ? 'active' : ''}" title="Toggle visibility of JSON paths">
           Paths
         </button>
-        <button data-action="toggle-edit-mode" class="${state.editModeActive ? 'active' : ''}">
-          ${state.editModeActive ? 'Done Editing' : 'Edit Mode'}
-        </button>
-        ${state.editModeActive ? `<button id="add-column-button" data-action="show-add-column-popover" aria-haspopup="true" aria-expanded="${state.showAddColumnPopover}">Add Column +</button>` : ''}
-        <button data-action="show-sql">SQL</button>
-        <button data-action="show-json">View/Edit Data</button>
-        <button data-action="show-csv">Export CSV</button>
       </div>
-      <div class="search-info" role="status" aria-live="polite" aria-atomic="true">
-        ${state.searchResults.length > 0 
-          ? `${state.currentSearchIndex + 1} of ${state.searchResults.length}${hiddenCount > 0 ? `<span class="hidden-indicator">(${hiddenCount} hidden)</span>` : ''}` 
-          : state.searchQuery && state.searchResults.length === 0 ? 'No matches' : `${state.data.length} rows`}
+
+      <div class="function-controls-group">
+        <button data-action="toggle-edit-mode" class="edit-mode-btn ${state.editModeActive ? 'active' : ''}" title="Toggle column editing, reordering, and value promotion">
+          ${state.editModeActive ? 'Edit Mode' : 'Edit Mode'}
+        </button>
+        <button 
+            id="add-column-button" 
+            class="add-column-btn ${state.editModeActive ? 'visible' : 'hidden-button'}" 
+            data-action="show-add-column-popover" 
+            aria-haspopup="true" 
+            aria-expanded="${state.showAddColumnPopover}" 
+            title="Add a previously removed column"
+            ${!state.editModeActive ? 'tabindex="-1"' : ''} 
+        >
+            Add Column +
+        </button>
+        <button data-action="show-sql" title="Generate SQL (CREATE TABLE and INSERT statements) from current view">SQL</button>
+        <button data-action="show-json" title="View or edit the raw JSON/CSV/TSV data">View/Edit Data</button>
+        <button data-action="show-csv" title="Export current table view as CSV">Export CSV</button>
       </div>
     </div>
   `;
@@ -234,15 +250,21 @@ const renderCell = (value, path, rowIndex, isNestedCall = false) => {
 
   let cellDisplayHtml = '';
   const currentResult = state.searchResults[state.currentSearchIndex];
-  const isCurrentMatchForHighlight = currentResult &&
-                                    currentResult.rowIndex === rowIndex &&
-                                    currentResult.path === path;
+  
+  let isCurrentValueHighlight = false;
+  if (currentResult && currentResult.rowIndex === rowIndex && currentResult.path === path) {
+      if (currentResult.matchedPart === 'value') {
+          isCurrentValueHighlight = true;
+      } else if (currentResult.matchedPart === 'key' && isExpandable && !isExpanded) {
+          isCurrentValueHighlight = true;
+      }
+  }
 
   if (isExpandable) {
       const displayValueText = Array.isArray(value) 
           ? `Array(${value.length})` 
           : `Object(${Object.keys(value).length})`;
-      const highlightedDisplayValue = highlightText(displayValueText, state.searchQuery, isCurrentMatchForHighlight && !isExpanded);
+      const highlightedDisplayValue = highlightText(displayValueText, state.searchQuery, isCurrentValueHighlight);
       
       const nestedContentId = `nested-content-${rowIndex}-${path.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
       const nestedDivContent = isExpanded ? renderNestedObject(value, path, rowIndex) : '';
@@ -267,22 +289,23 @@ const renderCell = (value, path, rowIndex, isNestedCall = false) => {
   } else {
       let textForHighlighting;
       let finalDisplay;
-      if (isTopLevelCell) {
-          if (value === null) {
-              textForHighlighting = '<null>';
-              finalDisplay = `<span class="value-special value-null">${highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight)}</span>`;
-          } else if (value === undefined) {
-              textForHighlighting = '<undefined>';
-              finalDisplay = `<span class="value-special value-undefined">${highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight)}</span>`;
-          } else {
-              textForHighlighting = String(value);
-              finalDisplay = highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight);
-          }
-      } else {
-          textForHighlighting = (value === null || value === undefined) ? '' : String(value);
-          finalDisplay = highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight);
+
+      if (value === null) textForHighlighting = '<null>';
+      else if (value === undefined) textForHighlighting = '<undefined>';
+      else textForHighlighting = String(value);
+      
+      let actualHighlightStateForPrimitive = isCurrentValueHighlight;
+      if(currentResult && currentResult.rowIndex === rowIndex && currentResult.path === path && currentResult.matchedPart === 'key'){
+        actualHighlightStateForPrimitive = false;
       }
+
+      finalDisplay = highlightText(textForHighlighting, state.searchQuery, actualHighlightStateForPrimitive);
+
+      if (value === null) finalDisplay = `<span class="value-special value-null">${finalDisplay}</span>`;
+      else if (value === undefined) finalDisplay = `<span class="value-special value-undefined">${finalDisplay}</span>`;
+      
       cellDisplayHtml = finalDisplay;
+
       const isPrimitive = value !== null && value !== undefined && typeof value !== 'object';
       if (state.editModeActive && isPrimitive && isNestedCall) { 
           cellDisplayHtml += `
@@ -309,9 +332,10 @@ const renderCell = (value, path, rowIndex, isNestedCall = false) => {
 const renderNestedObject = (obj, basePath, rowIndex) => {
   if (!obj || typeof obj !== 'object') {
     const currentResult = state.searchResults[state.currentSearchIndex];
-    const isCurrentMatch = currentResult && 
-      currentResult.rowIndex === rowIndex && 
-      currentResult.path === basePath;
+    let isCurrentMatch = false;
+    if (currentResult && currentResult.rowIndex === rowIndex && currentResult.path === basePath && currentResult.matchedPart === 'value') {
+        isCurrentMatch = true;
+    }
     
     let promoteButtonHtml = '';
     const isPrimitive = obj !== null && obj !== undefined && typeof obj !== 'object';
@@ -344,30 +368,31 @@ const renderNestedObject = (obj, basePath, rowIndex) => {
       for (let i = 0; i < sampleSize; i++) {
           if (typeof obj[i] === 'object' && obj[i] !== null && !Array.isArray(obj[i])) {
               Object.keys(obj[i]).forEach(key => columnKeys.add(key));
+          } else { 
+              isArrayOfObjects = false;
+              break;
           }
       }
-      if (columnKeys.size === 0) {
+      if(sampleSize === 0) isArrayOfObjects = false; 
+
+      if (columnKeys.size === 0 && isArrayOfObjects) { 
            if (obj.every(item => typeof item === 'object' && item !== null && !Array.isArray(item) && Object.keys(item).length === 0)) {
-              isArrayOfObjects = false; 
-           } else {
+           } else { 
               isArrayOfObjects = false;
            }
       }
+
       if (isArrayOfObjects) { 
           const headers = Array.from(columnKeys).sort(); 
           let headerRow = '<tr>'; 
           headers.forEach(header => {
-              const currentResult = state.searchResults[state.currentSearchIndex];
-              const isHeaderMatch = currentResult && state.searchQuery &&
-                                  header.toLowerCase().includes(state.searchQuery.toLowerCase()) &&
-                                  currentResult.path.startsWith(basePath);
-              headerRow += `<th>${highlightText(header, state.searchQuery, isHeaderMatch)}</th>`;
+              headerRow += `<th>${highlightText(header, state.searchQuery, false)}</th>`;
           });
           headerRow += '</tr>';
           let bodyRows = obj.map((item, index) => {
               const itemBasePath = `${basePath}[${index}]`;
               let rowCells = ``; 
-              if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+              if (typeof item === 'object' && item !== null && !Array.isArray(item)) { 
                   headers.forEach(key => {
                       const cellPath = `${itemBasePath}.${key}`;
                       const cellContent = renderCell(item[key], cellPath, rowIndex, true); 
@@ -403,13 +428,22 @@ const renderNestedObject = (obj, basePath, rowIndex) => {
         const itemPath = `${basePath}.${key}`;
         const valueContent = renderCell(value, itemPath, rowIndex, true); 
         const pathDisplay = state.showPaths ? `<div class="path-display">${itemPath}</div>` : '';
+        
         const currentResult = state.searchResults[state.currentSearchIndex];
-        const isKeyMatch = currentResult && state.searchQuery &&
-          key.toLowerCase().includes(state.searchQuery.toLowerCase()) && 
-          currentResult.path.startsWith(basePath);
+        let isCurrentKeyHighlight = false;
+        if (currentResult &&
+            currentResult.rowIndex === rowIndex &&
+            currentResult.path === itemPath && 
+            currentResult.matchedPart === 'key' &&
+            currentResult.matchedKeyName && 
+            currentResult.matchedKeyName.toLowerCase() === key.toLowerCase()
+           ) {
+            isCurrentKeyHighlight = true;
+        }
+
       return `
           <tr>
-            <td><div><strong>${highlightText(key, state.searchQuery, isKeyMatch)}</strong></div></td>
+            <td><div><strong>${highlightText(key, state.searchQuery, isCurrentKeyHighlight)}</strong></div></td>
             <td>${valueContent}${pathDisplay}</td>
           </tr>
       `;
@@ -464,6 +498,17 @@ const renderTable = () => {
                         title="Remove column '${escapeStringForDataAttribute(col)}'" 
                     >−</button>`;
               }
+
+              const currentSearchItem = state.searchResults[state.currentSearchIndex];
+              let isHeaderCurrentlyMatched = false;
+              if (currentSearchItem &&
+                  currentSearchItem.matchedPart === 'key' &&
+                  currentSearchItem.path === col && 
+                  state.searchQuery && 
+                  (currentSearchItem.matchedKeyName || col).toLowerCase().includes(state.searchQuery.toLowerCase())) {
+                  isHeaderCurrentlyMatched = true;
+              }
+
               return `
               <th 
                 role="button"
@@ -476,7 +521,7 @@ const renderTable = () => {
                 aria-sort="${state.sortBy === col ? (state.sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}"
               >
                 <div>
-                  ${col}
+                  ${highlightText(col, state.searchQuery, isHeaderCurrentlyMatched)}
                   ${removeButtonHtml}
                 </div>
                 ${state.showPaths ? `<div class="path-display">${col}</div>` : ''}
@@ -504,12 +549,12 @@ const renderTable = () => {
 const renderSqlModal = () => {
   if (!state.showSqlModal) return '';
   return `
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sql-modal-title">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sql-modal-title" id="sql-modal-dialog">
       <div id="sql-modal-content-wrapper" class="modal-content" style="width: 900px;">
         <div class="modal-header">
           <h3 id="sql-modal-title">Generated SQL</h3>
           <div>
-            <select data-action="change-dialect" style="margin-right: 10px;">
+            <select id="sql-dialect-select" data-action="change-dialect" style="margin-right: 10px;">
               <option value="snowflake" ${state.sqlDialect === 'snowflake' ? 'selected' : ''}>Snowflake</option>
               <option value="postgresql" ${state.sqlDialect === 'postgresql' ? 'selected' : ''}>PostgreSQL</option>
             </select>
@@ -715,11 +760,20 @@ export const render = () => {
   const activeElement = document.activeElement;
   let activeElementId = activeElement ? activeElement.id : null;
   let selectionStart, selectionEnd;
+  let sqlSelectValue = state.sqlDialect; // Preserve select value
 
-  if (activeElement && (activeElement.id === 'json-browser-search-box' || activeElement.id === 'json-edit-area')) {
-      selectionStart = activeElement.selectionStart;
-      selectionEnd = activeElement.selectionEnd;
+  if (activeElement) {
+      if (activeElement.id === 'json-browser-search-box' || activeElement.id === 'json-edit-area') {
+        selectionStart = activeElement.selectionStart;
+        selectionEnd = activeElement.selectionEnd;
+      }
+      // Store current value of SQL dialect select if it's focused or modal is open
+      if (activeElement.id === 'sql-dialect-select' || state.showSqlModal) {
+          const sqlSelect = document.getElementById('sql-dialect-select');
+          if(sqlSelect) sqlSelectValue = sqlSelect.value;
+      }
   }
+
 
   const jsonTableElement = appElement.querySelector('.json-table');
   let mainScrollLeft = 0;
@@ -740,6 +794,26 @@ export const render = () => {
     ${renderCsvModal()} 
   `;
 
+  // Add event listener to the SQL modal's select to stop click propagation
+  const sqlModalDialog = document.getElementById('sql-modal-dialog');
+  if (sqlModalDialog) {
+      const sqlSelectElement = sqlModalDialog.querySelector('#sql-dialect-select');
+      if (sqlSelectElement && !sqlSelectElement.dataset.clickListenerAttached) {
+          sqlSelectElement.addEventListener('click', (e) => {
+              e.stopPropagation();
+          });
+          sqlSelectElement.dataset.clickListenerAttached = 'true'; // Mark as attached
+      }
+  }
+  // Also, re-apply the value to the select if it was re-rendered
+  if (state.showSqlModal) {
+      const newSqlSelect = document.getElementById('sql-dialect-select');
+      if (newSqlSelect && newSqlSelect.value !== sqlSelectValue) {
+          newSqlSelect.value = sqlSelectValue;
+      }
+  }
+
+
   if (state.showJsonModal) {
       const jsonEditArea = document.getElementById('json-edit-area');
       const modalContentElement = document.getElementById('json-modal-content'); 
@@ -756,11 +830,20 @@ export const render = () => {
                   const file = files[0];
                   const reader = new FileReader();
                   reader.onload = (loadEvent) => {
-                      state.rawJsonEditContent = loadEvent.target.result;
-                      state.jsonValidationMessage = 'File dropped. Validate or Apply & Close.';
-                      if (jsonEditArea) jsonEditArea.value = state.rawJsonEditContent;
+                      if (loadEvent.target && typeof loadEvent.target.result === 'string') {
+                          state.rawJsonEditContent = loadEvent.target.result;
+                          state.jsonValidationMessage = 'File dropped. Validate or Apply & Close.';
+                          state.notify('rawJsonEditContent');
+                          state.notify('jsonValidationMessage');
+                      } else {
+                         state.jsonValidationMessage = '<span style="color: red;">Error: Could not read dropped file content.</span>';
+                         state.notify('jsonValidationMessage');
+                      }
                   };
-                  reader.onerror = () => { state.jsonValidationMessage = '<span style="color: red;">Error reading dropped file.</span>'; };
+                  reader.onerror = () => { 
+                      state.jsonValidationMessage = '<span style="color: red;">Error reading dropped file.</span>'; 
+                      state.notify('jsonValidationMessage');
+                  };
                   reader.readAsText(file);
               }
           };
@@ -804,9 +887,12 @@ export const render = () => {
   if (activeElementId) {
       const newActiveElement = document.getElementById(activeElementId);
       if (newActiveElement && document.activeElement !== newActiveElement) { 
+        if (newActiveElement.id === 'sql-dialect-select' && newActiveElement.value !== sqlSelectValue) {
+            newActiveElement.value = sqlSelectValue; // Ensure value is set before focusing
+        }
           newActiveElement.focus();
           if ((activeElementId === 'json-browser-search-box' || activeElementId === 'json-edit-area') && 
-              selectionStart !== undefined && selectionEnd !== undefined) {
+              selectionStart !== undefined && selectionEnd !== undefined && typeof newActiveElement.setSelectionRange === 'function') {
               try { newActiveElement.setSelectionRange(selectionStart, selectionEnd); } catch (ex) { /* ignore */ }
           }
       }
@@ -815,7 +901,7 @@ export const render = () => {
       const jsonEditArea = document.getElementById('json-edit-area');
       if (jsonEditArea && jsonEditArea.value !== state.rawJsonEditContent) {
           jsonEditArea.value = state.rawJsonEditContent; 
-          if (activeElementId === 'json-edit-area' && document.getElementById(activeElementId) === jsonEditArea) {
+          if (activeElementId === 'json-edit-area' && document.getElementById(activeElementId) === jsonEditArea && typeof jsonEditArea.setSelectionRange === 'function') {
                try { jsonEditArea.setSelectionRange(selectionStart, selectionEnd); } catch (ex) {/* ignore */}
           }
       }

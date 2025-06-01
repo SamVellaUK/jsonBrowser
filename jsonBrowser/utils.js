@@ -107,19 +107,74 @@ export const highlightText = (text, query, isActive = false) => {
 };
 
 export const performSearch = (data, query) => {
-  if (!query) return [];
-  const results = [];
-  data.forEach((row, rowIndex) => {
-    const flattened = flatten(row); 
-    flattened.forEach(({ path, value }) => {
-      const strValue = String(value).toLowerCase();
-      if (strValue.includes(query.toLowerCase())) {
-        results.push({ rowIndex, path, value: String(value) });
-      }
+    if (!query || String(query).trim() === '') return [];
+    const results = [];
+    const queryLower = String(query).toLowerCase();
+
+    data.forEach((row, rowIndex) => {
+        function searchItem(item, currentPath) {
+            if (item === null || item === undefined) {
+                return;
+            }
+
+            if (typeof item === 'object' && !Array.isArray(item)) {
+                for (const key in item) {
+                    if (Object.prototype.hasOwnProperty.call(item, key)) {
+                        const valuePath = currentPath ? `${currentPath}.${key}` : key;
+                        // Search Key
+                        if (key.toLowerCase().includes(queryLower)) {
+                            results.push({
+                                rowIndex,
+                                path: valuePath, // Path to the value of the matched key
+                                value: item[key], // Actual value of the key
+                                matchedPart: 'key',
+                                matchedKeyName: key // The key string that matched
+                            });
+                        }
+                        // Recurse for value associated with this key
+                        searchItem(item[key], valuePath);
+                    }
+                }
+            } else if (Array.isArray(item)) {
+                item.forEach((element, index) => {
+                    const elementPath = `${currentPath}[${index}]`;
+                    searchItem(element, elementPath);
+                });
+            } else {
+                // Search Value (primitive)
+                if (String(item).toLowerCase().includes(queryLower)) {
+                    results.push({
+                        rowIndex,
+                        path: currentPath, // Path to this primitive value
+                        value: item, // Original primitive value
+                        matchedPart: 'value'
+                    });
+                }
+            }
+        }
+        searchItem(row, ''); // Start search for the current row object
     });
-  });
-  return results;
+
+    // Deduplicate results:
+    // If a key match and a value match occur for the exact same path,
+    // prioritize the key match. This is because a key match is often more specific.
+    const uniqueResultsMap = new Map();
+    for (const res of results) {
+        const resultKey = `${res.rowIndex}-${res.path}`;
+        const existing = uniqueResultsMap.get(resultKey);
+        if (!existing) {
+            uniqueResultsMap.set(resultKey, res);
+        } else {
+            // If existing is a value match and new one is a key match for the same path, prefer key match.
+            if (existing.matchedPart === 'value' && res.matchedPart === 'key') {
+                uniqueResultsMap.set(resultKey, res);
+            }
+            // Otherwise (existing is key, new is value; or both are same type), keep the existing (first one found).
+        }
+    }
+    return Array.from(uniqueResultsMap.values());
 };
+
 
 export const escapeCsvField = (field) => {
   if (field === null || field === undefined) {
@@ -267,3 +322,12 @@ export const detectDelimiter = (textSample) => {
   return presentDelimiters[0].char;
 };
 
+export function debounce(func, delay) {
+    let timeoutId;
+    return function(...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            func.apply(this, args);
+        }, delay);
+    };
+}

@@ -10,16 +10,15 @@
 /* =============================================
    Global & Body Styles
    ============================================= */
-* { 
-  box-sizing: border-box; 
+* {
+  box-sizing: border-box;
 }
 
-body { 
-  font-family: 'Consolas', monospace; 
-  margin: 0; 
+body {
+  font-family: 'Consolas', monospace;
+  margin: 0;
   padding: 20px;
   background: #f8f9fa;
-  /* overflow: hidden;  REMOVED FOR ACCESSIBILITY */
 }
 
 /* =============================================
@@ -27,30 +26,71 @@ body {
    ============================================= */
 
 /* Header Area */
-.header { 
-  position: sticky; 
+.header {
+  position: sticky;
   top: 0;
   background: #fff;
-  padding: 15px;
+  padding: 10px 15px;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
   margin-bottom: 20px;
   display: flex;
-  gap: 15px;
+  gap: 15px; /* Space between groups */
   align-items: center;
-  flex-wrap: wrap;
-  z-index: 200; 
+  flex-wrap: wrap; /* Allow groups to wrap */
+  z-index: 200;
+}
+
+/* Header Control Groups */
+.search-group,
+.view-controls-group,
+.function-controls-group {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Space between items within a group */
+  flex-wrap: nowrap; /* Default, buttons within a group don't wrap unless specified in media query */
+}
+
+.search-group {
+  flex-grow: 1; /* Allow search group to take more space */
+  min-width: 280px; /* Minimum width for search group */
+}
+
+.view-controls-group,
+.function-controls-group {
+  flex-shrink: 0; /* Prevent these groups from shrinking excessively */
+}
+
+/* Responsive adjustments for header groups */
+@media (max-width: 1250px) { /* Breakpoint where groups might start to feel crowded */
+  .search-group,
+  .view-controls-group,
+  .function-controls-group {
+    flex-wrap: wrap; /* Allow buttons to wrap within groups */
+  }
+}
+@media (max-width: 768px) { /* More aggressive stacking for smaller screens */
+    .header {
+        /* flex-direction: column; /* Uncomment to stack groups vertically */
+        /* align-items: stretch;   /* Uncomment for full-width groups when stacked */
+    }
+    .search-info {
+        margin-left: 0; /* Reset margin for stacked layout */
+        width: 100%;    /* Take full width in stacked layout */
+        text-align: left; /* Or center, as preferred */
+        padding-top: 10px;
+    }
 }
 
 /* Scrollable viewport for the main table */
-.json-table { 
+.json-table {
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  max-height: calc(100vh - 140px); 
-  overflow-y: auto; 
-  overflow-x: auto; /* <<<< THIS IS KEY */
-  width: 100%;      /* Take up available width of its parent */
+  max-height: calc(100vh - 120px); /* Adjusted based on typical header height */
+  overflow-y: auto;
+  overflow-x: auto;
+  width: 100%;
 }
 
 /* Modal Container */
@@ -64,100 +104,193 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000; 
+  z-index: 1000;
 }
 
 /* =============================================
-   Interactive Elements (General)
+   Interactive Elements (Header Specific)
    ============================================= */
 
+/* Generic Button Base Style for Header */
+.header button {
+  padding: 7px 12px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: white;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.header button:disabled {
+  background-color: #adb5bd !important; /* More distinct disabled color */
+  border-color: #adb5bd !important;
+  color: #f8f9fa !important;
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+/* Search Group Styles */
 .search-box {
-  flex: 1;
-  min-width: 200px;
+  flex-grow: 1;
+  min-width: 150px;
   padding: 8px 12px;
-  border: 2px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
+  border: 2px solid #ced4da;
+  border-radius: 5px;
+  font-size: 13px;
 }
 
 .search-box:focus {
   outline: none;
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.search-button { /* Dedicated Search Button */
+  background-color: #007bff; /* Primary blue */
   border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25); /* Enhanced glow for search box */
+}
+.search-button:hover {
+  background-color: #0056b3;
+  border-color: #0056b3;
 }
 
-/* General Button Styling */
-.controls button, .search-nav button {
-  padding: 8px 16px;
-  margin: 0 4px;
-  border: none;
-  border-radius: 6px;
-  background: #007bff;
-  color: white;
-  cursor: pointer;
-  font-size: 12px;
+.search-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* Adds a small 4px gap between the previous and next buttons */
 }
 
-.controls button:hover, .search-nav button:hover {
-  background: #0056b3;
-}
-
-.controls button.active {
-  background: #28a745;
-}
-
-/* Search Navigation Buttons (Prev/Next) */
-.search-nav button {
-  width: 32px;
-  height: 32px;
+.search-nav button { /* Prev/Next */
+  background-color: #6c757d; /* Grey */
+  border-color: #6c757d;
+  width: 30px;
+  height: 30px;
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.search-nav button:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
 }
 
-.search-nav button:disabled {
-  background: #ccc;
-  cursor: not-allowed;
+/* View Controls Group Styles (e.g., for layout, display options) */
+.view-controls-group button {
+  background-color: #17a2b8; /* Teal/Info */
+  border-color: #17a2b8;
+}
+.view-controls-group button:hover {
+  background-color: #117a8b;
+  border-color: #10707f;
+}
+.view-controls-group button.active {
+  background-color: #138496;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.15);
+}
+
+/* Function Controls Group Styles (e.g., for actions, data manipulation) */
+.function-controls-group button {
+  background-color: #6f42c1; /* Purple - for general functions */
+  border-color: #6f42c1;
+}
+.function-controls-group button:hover {
+  background-color: #59369a;
+  border-color: #53338f;
+}
+
+/* Special function buttons within Function Group */
+.function-controls-group .edit-mode-btn {
+  background-color: #ffc107; /* Amber/Warning */
+  border-color: #ffc107;
+  color: #212529;
+}
+.function-controls-group .edit-mode-btn:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
+.function-controls-group .edit-mode-btn.active {
+  background-color: #28a745; /* Green for active "Done Editing" state */
+  border-color: #28a745;
+  color: white;
+}
+.function-controls-group .add-column-btn {
+  background-color: #20c997; /* A different shade of teal for add */
+  border-color: #20c997;
+}
+.function-controls-group .add-column-btn:hover {
+  background-color: #1baa80;
+  border-color: #189c73;
+}
+/* Visibility states for Add Column button */
+.add-column-btn.hidden-button {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+.add-column-btn.visible { /* May not be strictly necessary if default is visible */
+    visibility: visible;
+    opacity: 1;
+}
+
+.function-controls-group button[data-action="show-csv"] { /* Specific style for Export CSV */
+    background-color: #fd7e14; /* Orange */
+    border-color: #fd7e14;
+}
+.function-controls-group button[data-action="show-csv"]:hover {
+    background-color: #e36702;
+    border-color: #d96102;
 }
 
 /* Info text in Header */
 .search-info {
   font-size: 12px;
-  color: #666;
+  color: #495057; /* Darker grey for better readability */
   white-space: nowrap;
+  margin-left: auto; /* Push search info to the right */
+  padding: 8px 5px; /* Align vertically a bit better */
+  align-self: center; /* Ensure vertical alignment with other items if header wraps */
+  min-width: 150px; /* Prevent excessive shrinking/jumping when content changes */
+  text-align: left;
 }
 
 .hidden-indicator {
-  color: #c82333; /* Darker red for better contrast (AA compliant 5.15:1 on #fff) */
+  color: #c82333;
   font-size: 11px;
   margin-left: 8px;
+  font-weight: bold;
 }
 
 /* =============================================
    Main Table Styles
    ============================================= */
 
-/* The main data table structure */
 .json-table > table {
-  width: auto; /* Allow table to be wider than its container if content demands */
-  min-width: 100%; /* But at least as wide as its container initially */
+  width: auto;
+  min-width: 100%;
   border-collapse: collapse;
-  table-layout: auto; 
+  table-layout: auto;
 }
 
-/* Main table header cells */
 .json-table > table > thead > tr > th {
   background: #f8f9fa;
   font-weight: 600;
   cursor: pointer;
   user-select: none;
-  position: sticky; 
-  top: 0; 
-  z-index: 100; 
-  white-space: nowrap; 
-  padding: 10px 12px; 
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  white-space: nowrap;
+  padding: 10px 12px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #dee2e6;
   font-size: 13px;
-  min-width: 150px;   
+  min-width: 150px;
   vertical-align: top;
 }
 
@@ -165,14 +298,12 @@ body {
   background: #e9ecef;
 }
 
-/* Header cell content layout (for sorting icon, remove button) */
 .json-table > table > thead > tr > th > div {
   display: flex;
-  align-items: center; 
-  justify-content: space-between; 
+  align-items: center;
+  justify-content: space-between;
 }
 
-/* Sorting indicators */
 .json-table > table > thead > tr > th.sorted::after {
   content: ' ↓';
   color: #007bff;
@@ -184,25 +315,23 @@ body {
 
 th.dragging {
   opacity: 0.4;
-  background: #f0f0f0 !important; /* Use important if other styles override */
-  /* cursor: grabbing; /* Browser usually handles this */
+  background: #e9ecef !important;
 }
 
 th.drag-over {
   outline: 2px dashed #007bff;
-  outline-offset: -2px; /* Draw inside the border */
-  background-color: #e9ecef !important; /* Light highlight, use important if needed */
+  outline-offset: -2px;
+  background-color: #dfefff !important;
 }
 
-/* Remove column button in header */
 .remove-col-btn-header {
   margin-left: 5px;
-  padding: 0px 4px;
-  font-size: 10px;
-  line-height: 1;
+  padding: 1px 5px;
+  font-size: 11px;
+  line-height: 1.2;
   font-weight: bold;
   cursor: pointer;
-  background-color: #dc3545; /* Red for removal */
+  background-color: #dc3545;
   color: white;
   border: none;
   border-radius: 3px;
@@ -210,60 +339,58 @@ th.drag-over {
 }
 
 .remove-col-btn-header:hover {
-  background-color: #c82333; /* Darker red */
+  background-color: #c82333;
 }
 
-/* Main table data cells */
 .json-table > table > tbody > tr > td {
-  padding: 10px 12px; 
+  padding: 9px 12px;
   text-align: left;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #e9ecef;
   font-size: 13px;
-  min-width: 150px;   
-  word-wrap: break-word; 
-  overflow-wrap: break-word; 
+  min-width: 150px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
   vertical-align: top;
 }
 
-/* Main table row styling */
 .json-table > table > tbody > tr:nth-child(even) {
   background: #f8f9fa;
 }
 
 .json-table > table > tbody > tr:hover {
-  background: #e3f2fd;
+  background: #e6f7ff;
 }
 
-/* Row Number Column (Sticky) */
-.row-number { /* Base style for any row number cell */
+.row-number {
   text-align: center;
-  width: 50px !important;     
-  min-width: 50px !important;  
-  max-width: 50px !important;  
+  width: 50px !important;
+  min-width: 50px !important;
+  max-width: 50px !important;
   position: sticky;
   left: 0;
-  overflow: hidden; 
+  overflow: hidden;
   text-overflow: ellipsis;
-  white-space: normal; /* Allow wrapping if number is too long (unlikely) */
+  white-space: normal; /* Changed from nowrap to normal to allow potential wrapping if content forces it despite fixed width */
 }
 
 .json-table > table > thead > tr > th.row-number {
   font-weight: 600;
   color: #495057;
-  background: #f8f9fa; 
-  z-index: 150; /* Above other sticky headers */
+  background: #f1f3f5;
+  z-index: 150; /* Higher than regular th for sticky behavior */
+  border-right: 1px solid #dee2e6;
 }
 
 .json-table > table > tbody > tr > td.row-number {
-  font-weight: 600;
+  font-weight: normal;
   color: #495057;
-  background: #f8f9fa; 
-  z-index: 90; /* Above row content, below sticky header */
+  background: #f8f9fa; /* Base background for row number cell */
+  z-index: 90; /* Higher than regular td for sticky behavior */
+  border-right: 1px solid #e9ecef;
 }
 .json-table > table > tbody > tr:nth-child(even) > td.row-number {
-  background: #e9ecef; 
+  background: #e9ecef; /* Match even row striping, slightly adjusted */
 }
-
 
 /* =============================================
    Expandable / Nested Content Styles
@@ -272,79 +399,87 @@ th.drag-over {
 .expandable {
   cursor: pointer;
   position: relative;
-  background: linear-gradient(135deg, #fff3e0, #fff8e1);
-  border-left: 3px solid #ff9800;
-  padding: 4px 8px; 
-  border-radius: 4px; 
-  display: inline-block; 
-  max-width: 100%; 
+  background: #fff0e1;
+  border-left: 3px solid #fd7e14;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  max-width: 100%;
+  color: #543005;
 }
 
 .expandable:hover {
-  background: linear-gradient(135deg, #ffe0b2, #ffecb3);
+  background: #ffe0b2;
 }
 
 .toggle {
   display: inline-block;
-  width: 20px;
+  width: 18px;
   text-align: center;
   font-weight: bold;
-  color: #004085; /* Darker blue for better contrast (e.g., 5.7:1 on #fff3e0) */
-  margin-right: 8px;
+  color: #c55a11;
+  margin-right: 6px;
 }
 
 .nested {
   max-height: 0;
-  overflow: hidden; 
-  transition: max-height 0.3s ease, padding 0.3s ease, margin 0.3s ease;
-  background: #f0f8ff; 
-  border-left: 2px solid #007bff;
-  margin: 0; 
-  padding: 0; 
-  border-radius: 4px;
+  overflow: hidden;
+  transition: max-height 0.25s ease-out, padding 0.25s ease-out, margin 0.25s ease-out;
+  background: #fff9f2;
+  border-left: 2px solid #ffac47;
+  margin: 0;
+  padding: 0;
+  border-radius: 0 4px 4px 0;
 }
 
 .nested.expanded {
-  max-height: 5000px; 
+  max-height: 5000px; /* Large enough value for content */
   padding: 8px 12px;
-  margin: 8px 0 4px 20px; 
-  overflow-y: auto; 
+  margin: 6px 0 4px 20px;
+  overflow-y: auto;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
 }
 
-/* Nested Table Styles */
 .nested-table {
-  font-size: 11px;
-  margin: 4px 0; 
-  width: max-content; 
-  min-width: 100%;   
-  table-layout: auto; 
+  font-size: 12px;
+  margin: 4px 0;
+  width: max-content; /* Shrink to content width */
+  min-width: 100%;    /* But expand to fill container if content is smaller */
+  table-layout: auto;
+  border-collapse: collapse;
 }
 
 .nested-table th,
 .nested-table td {
-  padding: 6px 8px;
-  border-bottom: 1px solid #ddd;
-  font-size: 12px; 
-  min-width: 100px; 
+  padding: 5px 8px;
+  border: 1px solid #eee;
+  font-size: 12px;
+  min-width: 90px;
   word-wrap: break-word;
   overflow-wrap: break-word;
   vertical-align: top;
-  white-space: nowrap; 
+  white-space: normal;
+}
+.nested-table tr:last-child td {
+    border-bottom: 1px solid #eee; /* Ensure last row has bottom border */
 }
 
 .nested-table th {
-  background: #e9ecef; 
-  position: sticky; 
-  top: 0; 
-  z-index: 50; /* Below main table sticky header, above nested content */
-  white-space: nowrap;
+  background: #f7f7f7;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  font-weight: 600;
+  text-align: left;
 }
 
-.nested-table td.row-number { 
+.nested-table td.row-number {
   text-align: center;
-  font-weight: normal; 
-  background: #f7f7f7; 
-  /* Inherits .row-number base sticky properties if class is applied */
+  font-weight: normal;
+  background: #fcfcfc;
+  width: 40px !important;
+  min-width: 40px !important;
+  max-width: 40px !important;
 }
 
 /* =============================================
@@ -352,51 +487,60 @@ th.drag-over {
    ============================================= */
 
 .highlight {
-  background: #ffeb3b;
-  padding: 1px 2px;
-  border-radius: 2px;
-  font-weight: bold;
+  background: #ffc107;
+  padding: 1px 3px;
+  border-radius: 3px;
+  font-weight: normal;
+  color: #333;
 }
 
 .highlight.current {
-  background: #ff5722;
+  background: #dc3545;
   color: white;
-  box-shadow: 0 0 4px rgba(255, 87, 34, 0.5);
+  box-shadow: 0 0 5px rgba(220, 53, 69, 0.6);
 }
 
 .path-display {
   font-size: 10px;
-  color: #666;
-  margin-top: 2px;
+  color: #6c757d;
+  margin-top: 3px;
   font-style: italic;
-  word-break: break-all; 
+  word-break: break-all;
+  line-height: 1.3;
+}
+
+.value-special.value-null,
+.value-special.value-undefined {
+  color: #6c757d;
+  font-style: italic;
+}
+.value-special .highlight {
+  color: #212529; /* Ensure highlight text is visible on special values */
 }
 
 /* =============================================
-   Specific Button Styles
+   Specific Button Styles (Not in Header)
    ============================================= */
 
 .promote-btn {
-  margin-left: 8px; 
-  padding: 1px 5px; 
-  font-size: 11px;
+  margin-left: 8px;
+  padding: 2px 6px;
+  font-size: 10px;
   line-height: 1.2;
   font-weight: bold;
   cursor: pointer;
-  background-color: #28a745; 
+  background-color: #28a745;
   color: white;
   border: none;
-  border-radius: 4px;
-  vertical-align: middle; 
+  border-radius: 3px;
+  vertical-align: middle;
   box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
-  
+
 .promote-btn:hover {
-  background-color: #218838; 
+  background-color: #218838;
   box-shadow: 0 1px 3px rgba(0,0,0,0.15);
 }
-
-/* Note: .controls button.active is defined in General Button Styling */
 
 /* =============================================
    Modal Internals
@@ -405,11 +549,12 @@ th.drag-over {
 .modal-content {
   background: white;
   border-radius: 8px;
-  padding: 20px;
+  padding: 25px;
   max-width: 90%;
-  max-height: 90%;
+  max-height: 90vh;
   overflow: auto;
   position: relative;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
 
 .modal-header {
@@ -417,33 +562,44 @@ th.drag-over {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid #dee2e6;
   padding-bottom: 15px;
+}
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
 }
 
 .close-btn {
-  background: #dc3545;
-  color: white;
+  background: transparent;
+  color: #6c757d;
   border: none;
-  border-radius: 4px;
-  padding: 8px 12px;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.25rem 0.75rem;
   cursor: pointer;
+  opacity: 0.7;
+}
+.close-btn:hover {
+    color: #343a40;
+    opacity: 1;
 }
 
 /* =============================================
    Output Areas (SQL, JSON Edit)
    ============================================= */
 
-.sql-output, .json-edit-output { /* Grouped for common properties */
+.sql-output, .json-edit-output {
   width: 100%;
-  font-family: 'Consolas', monospace; /* Explicitly set, though inherits from body */
-  font-size: 12px;
+  font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
+  font-size: 13px;
   padding: 15px;
-  border: 1px solid #ddd;
+  border: 1px solid #ced4da;
   border-radius: 4px;
   background: #f8f9fa;
+  line-height: 1.5;
 }
-  
+
 .sql-output {
   min-height: 300px;
   resize: vertical;
@@ -453,27 +609,21 @@ th.drag-over {
    Feedback & Utility Styles
    ============================================= */
 
-.loading {
+.loading, .no-results {
   text-align: center;
-  padding: 40px;
-  color: #666;
-}
-
-.no-results {
-  text-align: center;
-  padding: 40px;
-  color: #999;
+  padding: 40px 20px;
+  color: #6c757d;
   font-style: italic;
+  font-size: 1.1em;
 }
 
-/* Add to your CSS */
-.json-edit-output.drag-over-active {
-  border: 2px dashed #007bff !important; /* Use !important if needed to override existing styles */
-  background-color: #f0f8ff;
+.json-edit-output.drag-over-active,
+#json-modal-content.drag-over-active {
+  border: 2px dashed #007bff !important;
+  background-color: #e9f4ff !important;
 }
-#json-modal-content.drag-over-active { /* If dropping on modal content */
-    outline: 2px dashed #007bff;
-    outline-offset: -10px; /* Adjust as needed */
+#json-modal-content.drag-over-active {
+    outline-offset: -10px; /* Ensure outline is visible if content padding is small */
 }
 
 /* =============================================
@@ -481,54 +631,60 @@ th.drag-over {
    ============================================= */
 
 /* General Focus Styles for Interactive Elements */
-.controls button:focus, 
-.search-nav button:focus,
+.header button:focus,
 .remove-col-btn-header:focus,
 .promote-btn:focus,
 .close-btn:focus,
-.expandable[role="button"]:focus, /* For clickable expand/collapse areas */
-th[role="button"]:focus, /* For sortable table headers */
-.modal-footer button:focus, /* Buttons in modal footer */
-.modal-header select:focus, /* Select in modal header */
-.promote-popover-btn:focus, /* Buttons in promote popover */
-button:focus, /* A general fallback for other buttons if needed */
-select:focus /* For the dialect select */
- {
-  outline: 2px solid #0056b3; /* A distinct blue, adjust color as needed */
-  outline-offset: 1px;         /* Small offset so outline doesn't overlap element too much */
-  box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.3); /* Optional: softer glow */
-}
-
-/* Input file button styling when hidden input is focused (for keyboard users) */
-input[type="file"]:focus + button {
+.expandable[role="button"]:focus,
+th[role="button"]:focus,
+.modal button:focus, /* Generic modal button focus */
+.modal select:focus,
+.modal textarea:focus, /* For textareas in modals like SQL, JSON */
+.promote-popover-btn:focus,
+.add-column-popover-btn:focus,
+button:focus { /* Fallback for other buttons not specifically targeted */
   outline: 2px solid #0056b3;
-  outline-offset: 1px;
-  box-shadow: 0 0 0 2px rgba(0, 86, 179, 0.3);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.35);
 }
 
+/* Override for search box as it has its own distinct focus style */
+.search-box:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  outline: none; /* Remove default outline if box-shadow is used */
+}
 
-/* Ensure textarea focus is also clear */
+input[type="file"]:focus + button { /* Style for button that triggers hidden file input */
+  outline: 2px solid #0056b3;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px rgba(0, 86, 179, 0.35);
+}
+
 .sql-output:focus,
 .json-edit-output:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-  outline: none; /* If using box-shadow for focus, outline might be redundant */
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  outline: none;
 }
 
-/* For popover buttons - specific style if needed to override general button:focus */
-.promote-popover-btn:focus {
-  /* General style above should cover, but can add specific overrides here */
-  background-color: #e9ecef; /* Add a background change for better visibility */
+/* Specific focus for popover buttons if needed for better visibility */
+.promote-popover-btn:focus,
+.add-column-popover-btn:focus {
+  background-color: #e9ecef; /* Light background highlight */
+  border-color: #0056b3; /* Add border color change */
 }
-/* In Special Cell/Content Styling or a new section */
-.value-special.value-null,
-.value-special.value-undefined {
-  color: #999; /* Light grey */
-}
-/* Ensure highlighting within special text is still visible */
-.value-special .highlight {
-  color: initial; /* Or specific color if grey clashes */
-  /* background remains from .highlight */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
 }
 </style>
   
@@ -775,6 +931,7 @@ const createReactiveState = (initial) => {
     addColumnPopoverAnchor: null,     // NEW: Anchor element for "Add Column" popover
     showCsvModal: false,          // Controls visibility of the CSV export modal
     csvOutputContent: '',       // Holds the generated CSV string
+    darkModeActive: false, // Add this
   });
 
 // --- END OF INLINED state.js ---
@@ -889,19 +1046,74 @@ const highlightText = (text, query, isActive = false) => {
 };
 
 const performSearch = (data, query) => {
-  if (!query) return [];
-  const results = [];
-  data.forEach((row, rowIndex) => {
-    const flattened = flatten(row); 
-    flattened.forEach(({ path, value }) => {
-      const strValue = String(value).toLowerCase();
-      if (strValue.includes(query.toLowerCase())) {
-        results.push({ rowIndex, path, value: String(value) });
-      }
+    if (!query || String(query).trim() === '') return [];
+    const results = [];
+    const queryLower = String(query).toLowerCase();
+
+    data.forEach((row, rowIndex) => {
+        function searchItem(item, currentPath) {
+            if (item === null || item === undefined) {
+                return;
+            }
+
+            if (typeof item === 'object' && !Array.isArray(item)) {
+                for (const key in item) {
+                    if (Object.prototype.hasOwnProperty.call(item, key)) {
+                        const valuePath = currentPath ? `${currentPath}.${key}` : key;
+                        // Search Key
+                        if (key.toLowerCase().includes(queryLower)) {
+                            results.push({
+                                rowIndex,
+                                path: valuePath, // Path to the value of the matched key
+                                value: item[key], // Actual value of the key
+                                matchedPart: 'key',
+                                matchedKeyName: key // The key string that matched
+                            });
+                        }
+                        // Recurse for value associated with this key
+                        searchItem(item[key], valuePath);
+                    }
+                }
+            } else if (Array.isArray(item)) {
+                item.forEach((element, index) => {
+                    const elementPath = `${currentPath}[${index}]`;
+                    searchItem(element, elementPath);
+                });
+            } else {
+                // Search Value (primitive)
+                if (String(item).toLowerCase().includes(queryLower)) {
+                    results.push({
+                        rowIndex,
+                        path: currentPath, // Path to this primitive value
+                        value: item, // Original primitive value
+                        matchedPart: 'value'
+                    });
+                }
+            }
+        }
+        searchItem(row, ''); // Start search for the current row object
     });
-  });
-  return results;
+
+    // Deduplicate results:
+    // If a key match and a value match occur for the exact same path,
+    // prioritize the key match. This is because a key match is often more specific.
+    const uniqueResultsMap = new Map();
+    for (const res of results) {
+        const resultKey = `${res.rowIndex}-${res.path}`;
+        const existing = uniqueResultsMap.get(resultKey);
+        if (!existing) {
+            uniqueResultsMap.set(resultKey, res);
+        } else {
+            // If existing is a value match and new one is a key match for the same path, prefer key match.
+            if (existing.matchedPart === 'value' && res.matchedPart === 'key') {
+                uniqueResultsMap.set(resultKey, res);
+            }
+            // Otherwise (existing is key, new is value; or both are same type), keep the existing (first one found).
+        }
+    }
+    return Array.from(uniqueResultsMap.values());
 };
+
 
 const escapeCsvField = (field) => {
   if (field === null || field === undefined) {
@@ -1049,7 +1261,15 @@ const detectDelimiter = (textSample) => {
   return presentDelimiters[0].char;
 };
 
-
+function debounce(func, delay) {
+    let timeoutId;
+    return function(...args) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+            func.apply(this, args);
+        }, delay);
+    };
+}
 // --- END OF INLINED utils.js ---
 
 // --- START OF INLINED ui.js ---
@@ -1090,7 +1310,7 @@ function trapFocusInModal(e) {
     const modal = e.currentTarget;
     const focusableElements = Array.from(
         modal.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
-    ).filter(el => el.offsetParent !== null && !el.disabled);
+    ).filter(el => el.offsetParent !== null && !el.disabled && el.offsetWidth > 0 && el.offsetHeight > 0); // Added visibility check
     if (focusableElements.length === 0) return;
     const firstFocusableElement = focusableElements[0];
     const lastFocusableElement = focusableElements[focusableElements.length - 1];
@@ -1110,11 +1330,14 @@ function trapFocusInModal(e) {
 const scrollToCurrentSearchResult = () => {
   const currentResultElement = document.querySelector('.highlight.current');
   if (currentResultElement) {
-    currentResultElement.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center', 
-      inline: 'nearest' 
-    });
+    const rect = currentResultElement.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) { 
+        currentResultElement.scrollIntoView({
+          behavior: 'smooth', 
+          block: 'center', 
+          inline: 'nearest' 
+        });
+    }
   }
 };
 
@@ -1127,8 +1350,8 @@ const expandToResult = (result) => {
     pathParts.forEach((part, index) => {
       currentPath = index === 0 ? part : `${currentPath}.${part}`;
       const objectPathForExpansion = currentPath.replace(/\.(\d+)(?=\.|$)/g, '[$1]');
-      const value = getValue(state.data[result.rowIndex], objectPathForExpansion);
-      if (index < pathParts.length - 1 && value && typeof value === 'object') {
+      const valueAtPath = getValue(state.data[result.rowIndex], objectPathForExpansion);
+      if (index < pathParts.length - 1 && valueAtPath && typeof valueAtPath === 'object') {
         if (!state.expandedPaths.has(`${result.rowIndex}-${objectPathForExpansion}`)) {
             state.expandedPaths.add(`${result.rowIndex}-${objectPathForExpansion}`);
             needsExpandedPathNotify = true;
@@ -1142,19 +1365,6 @@ const expandToResult = (result) => {
          needsExpandedPathNotify = true;
      }
 
-    const rootColumn = result.path.split(/[.\[]/)[0];
-    let columnChanged = false;
-    const newVisibleColumns = [...state.visibleColumns];
-
-    if (!newVisibleColumns.includes(result.path) && !newVisibleColumns.includes(rootColumn)) {
-        newVisibleColumns.push(rootColumn);
-        columnChanged = true;
-    }
-    
-    if (columnChanged) {
-        state.visibleColumns = newVisibleColumns; 
-        updateAllPossibleColumns();
-    }
 
     if (needsExpandedPathNotify) {
         state.notify('expandedPaths'); 
@@ -1176,6 +1386,7 @@ const updateAllPossibleColumns = () => {
   });
   state.visibleColumns.forEach(colPath => newAllPossible.add(colPath));
   state.allPossibleColumns.forEach(colPath => newAllPossible.add(colPath));
+
   if (newAllPossible.size !== state.allPossibleColumns.size || ![...newAllPossible].every(item => state.allPossibleColumns.has(item))) {
       state.allPossibleColumns = newAllPossible;
   }
@@ -1237,40 +1448,65 @@ const renderHeader = () => {
     }
   ).length;
 
+  let searchInfoText;
+  if (state.searchResults.length > 0) {
+    searchInfoText = `${state.currentSearchIndex + 1} of ${state.searchResults.length}${hiddenCount > 0 ? ` (${hiddenCount} hidden)` : ''}`;
+  } else if (state.searchQuery && state.searchResults.length === 0) {
+    searchInfoText = 'No matches';
+  } else {
+    searchInfoText = `${state.data.length} rows`;
+  }
+
   return `
     <div class="header">
-      <input 
-        aria-label="Search JSON content"
-        id="json-browser-search-box" 
-        type="text" 
-        class="search-box" 
-        placeholder="Search (Press Enter)" 
-        value="${escapeStringForDataAttribute(state.searchQuery)}"
-        data-action="search"
-      >
-      <div class="search-nav">
-        <button aria-label="Previous search result" data-action="search-prev" ${state.searchResults.length === 0 ? 'disabled' : ''}>←</button>
-        <button aria-label="Next search result" data-action="search-next" ${state.searchResults.length === 0 ? 'disabled' : ''}>→</button>
+    
+      <div class="search-group">
+        <input 
+          aria-label="Search JSON content"
+          id="json-browser-search-box" 
+          type="text" 
+          class="search-box" 
+          placeholder="Search JSON (Press Enter)" 
+          value="${escapeStringForDataAttribute(state.searchQuery)}"
+          data-action="search" 
+        >
+        <button class="search-button" data-action="execute-search" aria-label="Execute search">Search</button>
+        <div class="search-nav">
+          <button aria-label="Previous search result" data-action="search-prev" ${state.searchResults.length === 0 ? 'disabled' : ''}>←</button>
+          <button aria-label="Next search result" data-action="search-next" ${state.searchResults.length === 0 ? 'disabled' : ''}>→</button>
+        </div>
+        <div class="search-info" role="status" aria-live="polite" aria-atomic="true">
+          ${searchInfoText}
+        </div>
       </div>
-      <div class="controls">
-        <button data-action="reset-view">Reset View</button>
-        <button data-action="expand-all">Expand All</button>
-        <button data-action="collapse-all">Collapse All</button>
-        <button data-action="toggle-paths" class="${state.showPaths ? 'active' : ''}">
+
+      <div class="view-controls-group">
+        <button data-action="reset-view" title="Reset view to default columns and expansion state">Reset View</button>
+        <button data-action="expand-all" title="Expand all expandable items">Expand All</button>
+        <button data-action="collapse-all" title="Collapse all expanded items">Collapse All</button>
+        <button data-action="toggle-paths" class="${state.showPaths ? 'active' : ''}" title="Toggle visibility of JSON paths">
           Paths
         </button>
-        <button data-action="toggle-edit-mode" class="${state.editModeActive ? 'active' : ''}">
-          ${state.editModeActive ? 'Done Editing' : 'Edit Mode'}
-        </button>
-        ${state.editModeActive ? `<button id="add-column-button" data-action="show-add-column-popover" aria-haspopup="true" aria-expanded="${state.showAddColumnPopover}">Add Column +</button>` : ''}
-        <button data-action="show-sql">SQL</button>
-        <button data-action="show-json">View/Edit Data</button>
-        <button data-action="show-csv">Export CSV</button>
       </div>
-      <div class="search-info" role="status" aria-live="polite" aria-atomic="true">
-        ${state.searchResults.length > 0 
-          ? `${state.currentSearchIndex + 1} of ${state.searchResults.length}${hiddenCount > 0 ? `<span class="hidden-indicator">(${hiddenCount} hidden)</span>` : ''}` 
-          : state.searchQuery && state.searchResults.length === 0 ? 'No matches' : `${state.data.length} rows`}
+
+      <div class="function-controls-group">
+        <button data-action="toggle-edit-mode" class="edit-mode-btn ${state.editModeActive ? 'active' : ''}" title="Toggle column editing, reordering, and value promotion">
+          ${state.editModeActive ? 'Edit Mode' : 'Edit Mode'}
+        </button>
+        <button 
+            id="add-column-button" 
+            class="add-column-btn ${state.editModeActive ? 'visible' : 'hidden-button'}" 
+            data-action="show-add-column-popover" 
+            aria-haspopup="true" 
+            aria-expanded="${state.showAddColumnPopover}" 
+            title="Add a previously removed column"
+            ${!state.editModeActive ? 'tabindex="-1"' : ''} 
+        >
+            Add Column +
+        </button>
+        <button data-action="show-sql" title="Generate SQL (CREATE TABLE and INSERT statements) from current view">SQL</button>
+        <button data-action="show-json" title="View or edit the raw JSON/CSV/TSV data">View/Edit Data</button>
+        <button data-action="show-csv" title="Export current table view as CSV">Export CSV</button>
       </div>
     </div>
   `;
@@ -1284,15 +1520,21 @@ const renderCell = (value, path, rowIndex, isNestedCall = false) => {
 
   let cellDisplayHtml = '';
   const currentResult = state.searchResults[state.currentSearchIndex];
-  const isCurrentMatchForHighlight = currentResult &&
-                                    currentResult.rowIndex === rowIndex &&
-                                    currentResult.path === path;
+  
+  let isCurrentValueHighlight = false;
+  if (currentResult && currentResult.rowIndex === rowIndex && currentResult.path === path) {
+      if (currentResult.matchedPart === 'value') {
+          isCurrentValueHighlight = true;
+      } else if (currentResult.matchedPart === 'key' && isExpandable && !isExpanded) {
+          isCurrentValueHighlight = true;
+      }
+  }
 
   if (isExpandable) {
       const displayValueText = Array.isArray(value) 
           ? `Array(${value.length})` 
           : `Object(${Object.keys(value).length})`;
-      const highlightedDisplayValue = highlightText(displayValueText, state.searchQuery, isCurrentMatchForHighlight && !isExpanded);
+      const highlightedDisplayValue = highlightText(displayValueText, state.searchQuery, isCurrentValueHighlight);
       
       const nestedContentId = `nested-content-${rowIndex}-${path.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
       const nestedDivContent = isExpanded ? renderNestedObject(value, path, rowIndex) : '';
@@ -1317,22 +1559,23 @@ const renderCell = (value, path, rowIndex, isNestedCall = false) => {
   } else {
       let textForHighlighting;
       let finalDisplay;
-      if (isTopLevelCell) {
-          if (value === null) {
-              textForHighlighting = '<null>';
-              finalDisplay = `<span class="value-special value-null">${highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight)}</span>`;
-          } else if (value === undefined) {
-              textForHighlighting = '<undefined>';
-              finalDisplay = `<span class="value-special value-undefined">${highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight)}</span>`;
-          } else {
-              textForHighlighting = String(value);
-              finalDisplay = highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight);
-          }
-      } else {
-          textForHighlighting = (value === null || value === undefined) ? '' : String(value);
-          finalDisplay = highlightText(textForHighlighting, state.searchQuery, isCurrentMatchForHighlight);
+
+      if (value === null) textForHighlighting = '<null>';
+      else if (value === undefined) textForHighlighting = '<undefined>';
+      else textForHighlighting = String(value);
+      
+      let actualHighlightStateForPrimitive = isCurrentValueHighlight;
+      if(currentResult && currentResult.rowIndex === rowIndex && currentResult.path === path && currentResult.matchedPart === 'key'){
+        actualHighlightStateForPrimitive = false;
       }
+
+      finalDisplay = highlightText(textForHighlighting, state.searchQuery, actualHighlightStateForPrimitive);
+
+      if (value === null) finalDisplay = `<span class="value-special value-null">${finalDisplay}</span>`;
+      else if (value === undefined) finalDisplay = `<span class="value-special value-undefined">${finalDisplay}</span>`;
+      
       cellDisplayHtml = finalDisplay;
+
       const isPrimitive = value !== null && value !== undefined && typeof value !== 'object';
       if (state.editModeActive && isPrimitive && isNestedCall) { 
           cellDisplayHtml += `
@@ -1359,9 +1602,10 @@ const renderCell = (value, path, rowIndex, isNestedCall = false) => {
 const renderNestedObject = (obj, basePath, rowIndex) => {
   if (!obj || typeof obj !== 'object') {
     const currentResult = state.searchResults[state.currentSearchIndex];
-    const isCurrentMatch = currentResult && 
-      currentResult.rowIndex === rowIndex && 
-      currentResult.path === basePath;
+    let isCurrentMatch = false;
+    if (currentResult && currentResult.rowIndex === rowIndex && currentResult.path === basePath && currentResult.matchedPart === 'value') {
+        isCurrentMatch = true;
+    }
     
     let promoteButtonHtml = '';
     const isPrimitive = obj !== null && obj !== undefined && typeof obj !== 'object';
@@ -1394,30 +1638,31 @@ const renderNestedObject = (obj, basePath, rowIndex) => {
       for (let i = 0; i < sampleSize; i++) {
           if (typeof obj[i] === 'object' && obj[i] !== null && !Array.isArray(obj[i])) {
               Object.keys(obj[i]).forEach(key => columnKeys.add(key));
+          } else { 
+              isArrayOfObjects = false;
+              break;
           }
       }
-      if (columnKeys.size === 0) {
+      if(sampleSize === 0) isArrayOfObjects = false; 
+
+      if (columnKeys.size === 0 && isArrayOfObjects) { 
            if (obj.every(item => typeof item === 'object' && item !== null && !Array.isArray(item) && Object.keys(item).length === 0)) {
-              isArrayOfObjects = false; 
-           } else {
+           } else { 
               isArrayOfObjects = false;
            }
       }
+
       if (isArrayOfObjects) { 
           const headers = Array.from(columnKeys).sort(); 
           let headerRow = '<tr>'; 
           headers.forEach(header => {
-              const currentResult = state.searchResults[state.currentSearchIndex];
-              const isHeaderMatch = currentResult && state.searchQuery &&
-                                  header.toLowerCase().includes(state.searchQuery.toLowerCase()) &&
-                                  currentResult.path.startsWith(basePath);
-              headerRow += `<th>${highlightText(header, state.searchQuery, isHeaderMatch)}</th>`;
+              headerRow += `<th>${highlightText(header, state.searchQuery, false)}</th>`;
           });
           headerRow += '</tr>';
           let bodyRows = obj.map((item, index) => {
               const itemBasePath = `${basePath}[${index}]`;
               let rowCells = ``; 
-              if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+              if (typeof item === 'object' && item !== null && !Array.isArray(item)) { 
                   headers.forEach(key => {
                       const cellPath = `${itemBasePath}.${key}`;
                       const cellContent = renderCell(item[key], cellPath, rowIndex, true); 
@@ -1453,13 +1698,22 @@ const renderNestedObject = (obj, basePath, rowIndex) => {
         const itemPath = `${basePath}.${key}`;
         const valueContent = renderCell(value, itemPath, rowIndex, true); 
         const pathDisplay = state.showPaths ? `<div class="path-display">${itemPath}</div>` : '';
+        
         const currentResult = state.searchResults[state.currentSearchIndex];
-        const isKeyMatch = currentResult && state.searchQuery &&
-          key.toLowerCase().includes(state.searchQuery.toLowerCase()) && 
-          currentResult.path.startsWith(basePath);
+        let isCurrentKeyHighlight = false;
+        if (currentResult &&
+            currentResult.rowIndex === rowIndex &&
+            currentResult.path === itemPath && 
+            currentResult.matchedPart === 'key' &&
+            currentResult.matchedKeyName && 
+            currentResult.matchedKeyName.toLowerCase() === key.toLowerCase()
+           ) {
+            isCurrentKeyHighlight = true;
+        }
+
       return `
           <tr>
-            <td><div><strong>${highlightText(key, state.searchQuery, isKeyMatch)}</strong></div></td>
+            <td><div><strong>${highlightText(key, state.searchQuery, isCurrentKeyHighlight)}</strong></div></td>
             <td>${valueContent}${pathDisplay}</td>
           </tr>
       `;
@@ -1514,6 +1768,17 @@ const renderTable = () => {
                         title="Remove column '${escapeStringForDataAttribute(col)}'" 
                     >−</button>`;
               }
+
+              const currentSearchItem = state.searchResults[state.currentSearchIndex];
+              let isHeaderCurrentlyMatched = false;
+              if (currentSearchItem &&
+                  currentSearchItem.matchedPart === 'key' &&
+                  currentSearchItem.path === col && 
+                  state.searchQuery && 
+                  (currentSearchItem.matchedKeyName || col).toLowerCase().includes(state.searchQuery.toLowerCase())) {
+                  isHeaderCurrentlyMatched = true;
+              }
+
               return `
               <th 
                 role="button"
@@ -1526,7 +1791,7 @@ const renderTable = () => {
                 aria-sort="${state.sortBy === col ? (state.sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}"
               >
                 <div>
-                  ${col}
+                  ${highlightText(col, state.searchQuery, isHeaderCurrentlyMatched)}
                   ${removeButtonHtml}
                 </div>
                 ${state.showPaths ? `<div class="path-display">${col}</div>` : ''}
@@ -1554,12 +1819,12 @@ const renderTable = () => {
 const renderSqlModal = () => {
   if (!state.showSqlModal) return '';
   return `
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sql-modal-title">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="sql-modal-title" id="sql-modal-dialog">
       <div id="sql-modal-content-wrapper" class="modal-content" style="width: 900px;">
         <div class="modal-header">
           <h3 id="sql-modal-title">Generated SQL</h3>
           <div>
-            <select data-action="change-dialect" style="margin-right: 10px;">
+            <select id="sql-dialect-select" data-action="change-dialect" style="margin-right: 10px;">
               <option value="snowflake" ${state.sqlDialect === 'snowflake' ? 'selected' : ''}>Snowflake</option>
               <option value="postgresql" ${state.sqlDialect === 'postgresql' ? 'selected' : ''}>PostgreSQL</option>
             </select>
@@ -1765,11 +2030,20 @@ const render = () => {
   const activeElement = document.activeElement;
   let activeElementId = activeElement ? activeElement.id : null;
   let selectionStart, selectionEnd;
+  let sqlSelectValue = state.sqlDialect; // Preserve select value
 
-  if (activeElement && (activeElement.id === 'json-browser-search-box' || activeElement.id === 'json-edit-area')) {
-      selectionStart = activeElement.selectionStart;
-      selectionEnd = activeElement.selectionEnd;
+  if (activeElement) {
+      if (activeElement.id === 'json-browser-search-box' || activeElement.id === 'json-edit-area') {
+        selectionStart = activeElement.selectionStart;
+        selectionEnd = activeElement.selectionEnd;
+      }
+      // Store current value of SQL dialect select if it's focused or modal is open
+      if (activeElement.id === 'sql-dialect-select' || state.showSqlModal) {
+          const sqlSelect = document.getElementById('sql-dialect-select');
+          if(sqlSelect) sqlSelectValue = sqlSelect.value;
+      }
   }
+
 
   const jsonTableElement = appElement.querySelector('.json-table');
   let mainScrollLeft = 0;
@@ -1790,6 +2064,26 @@ const render = () => {
     ${renderCsvModal()} 
   `;
 
+  // Add event listener to the SQL modal's select to stop click propagation
+  const sqlModalDialog = document.getElementById('sql-modal-dialog');
+  if (sqlModalDialog) {
+      const sqlSelectElement = sqlModalDialog.querySelector('#sql-dialect-select');
+      if (sqlSelectElement && !sqlSelectElement.dataset.clickListenerAttached) {
+          sqlSelectElement.addEventListener('click', (e) => {
+              e.stopPropagation();
+          });
+          sqlSelectElement.dataset.clickListenerAttached = 'true'; // Mark as attached
+      }
+  }
+  // Also, re-apply the value to the select if it was re-rendered
+  if (state.showSqlModal) {
+      const newSqlSelect = document.getElementById('sql-dialect-select');
+      if (newSqlSelect && newSqlSelect.value !== sqlSelectValue) {
+          newSqlSelect.value = sqlSelectValue;
+      }
+  }
+
+
   if (state.showJsonModal) {
       const jsonEditArea = document.getElementById('json-edit-area');
       const modalContentElement = document.getElementById('json-modal-content'); 
@@ -1806,11 +2100,20 @@ const render = () => {
                   const file = files[0];
                   const reader = new FileReader();
                   reader.onload = (loadEvent) => {
-                      state.rawJsonEditContent = loadEvent.target.result;
-                      state.jsonValidationMessage = 'File dropped. Validate or Apply & Close.';
-                      if (jsonEditArea) jsonEditArea.value = state.rawJsonEditContent;
+                      if (loadEvent.target && typeof loadEvent.target.result === 'string') {
+                          state.rawJsonEditContent = loadEvent.target.result;
+                          state.jsonValidationMessage = 'File dropped. Validate or Apply & Close.';
+                          state.notify('rawJsonEditContent');
+                          state.notify('jsonValidationMessage');
+                      } else {
+                         state.jsonValidationMessage = '<span style="color: red;">Error: Could not read dropped file content.</span>';
+                         state.notify('jsonValidationMessage');
+                      }
                   };
-                  reader.onerror = () => { state.jsonValidationMessage = '<span style="color: red;">Error reading dropped file.</span>'; };
+                  reader.onerror = () => { 
+                      state.jsonValidationMessage = '<span style="color: red;">Error reading dropped file.</span>'; 
+                      state.notify('jsonValidationMessage');
+                  };
                   reader.readAsText(file);
               }
           };
@@ -1854,9 +2157,12 @@ const render = () => {
   if (activeElementId) {
       const newActiveElement = document.getElementById(activeElementId);
       if (newActiveElement && document.activeElement !== newActiveElement) { 
+        if (newActiveElement.id === 'sql-dialect-select' && newActiveElement.value !== sqlSelectValue) {
+            newActiveElement.value = sqlSelectValue; // Ensure value is set before focusing
+        }
           newActiveElement.focus();
           if ((activeElementId === 'json-browser-search-box' || activeElementId === 'json-edit-area') && 
-              selectionStart !== undefined && selectionEnd !== undefined) {
+              selectionStart !== undefined && selectionEnd !== undefined && typeof newActiveElement.setSelectionRange === 'function') {
               try { newActiveElement.setSelectionRange(selectionStart, selectionEnd); } catch (ex) { /* ignore */ }
           }
       }
@@ -1865,112 +2171,177 @@ const render = () => {
       const jsonEditArea = document.getElementById('json-edit-area');
       if (jsonEditArea && jsonEditArea.value !== state.rawJsonEditContent) {
           jsonEditArea.value = state.rawJsonEditContent; 
-          if (activeElementId === 'json-edit-area' && document.getElementById(activeElementId) === jsonEditArea) {
+          if (activeElementId === 'json-edit-area' && document.getElementById(activeElementId) === jsonEditArea && typeof jsonEditArea.setSelectionRange === 'function') {
                try { jsonEditArea.setSelectionRange(selectionStart, selectionEnd); } catch (ex) {/* ignore */}
           }
       }
   }
 };
-
 // --- END OF INLINED ui.js ---
 
 // --- START OF INLINED basic.js (entry point) ---
+// basic.js
 
-// basic.js (new main entry point)
+// Assuming debounce is in utils.js, otherwise define it here or let lastExecutedSearchQuery = null; // Keep this to know if a search has been made
+
+function blurSearchBox() {
+    const searchBox = document.getElementById('json-browser-search-box');
+    if (searchBox) {
+        searchBox.blur();
+    }
+}
+
+function focusSearchBox() {
+    const searchBox = document.getElementById('json-browser-search-box');
+    if (searchBox) {
+        searchBox.focus();
+        searchBox.select(); // Optional: also select existing text
+    }
+}
+
+// calledFromEnterInSearchBox is true if user pressed Enter while search box was focused.
+function executeSearchLogic(calledFromEnterInSearchBox = false) {
+    let queryToSearch = state.searchQuery;
+
+    if (calledFromEnterInSearchBox) {
+        const searchBox = document.getElementById('json-browser-search-box');
+        if (searchBox && searchBox.value !== state.searchQuery) {
+            queryToSearch = searchBox.value;
+            state.searchQuery = queryToSearch;
+        }
+    }
+    
+    if (queryToSearch.trim() === '') {
+        state.searchResults = [];
+        state.currentSearchIndex = -1;
+        lastExecutedSearchQuery = null; 
+        state.notify('searchResults'); // This will also trigger re-render using the new currentSearchIndex
+    } else {
+        state.searchResults = performSearch(state.data, queryToSearch);
+        const oldSearchIndex = state.currentSearchIndex;
+        state.currentSearchIndex = state.searchResults.length > 0 ? 0 : -1;
+        lastExecutedSearchQuery = queryToSearch;
+        
+        state.notify('searchResults'); // Notifies about the new list and its length.
+        // If currentSearchIndex changed and searchResults notification doesn't implicitly handle it for render, notify explicitly.
+        // However, usually a 'searchResults' change implies re-evaluation of highlights based on currentSearchIndex.
+        // For robustness, if currentSearchIndex changed meaningfully (e.g. from -1 to 0, or 0 to -1)
+        // and the 'searchResults' notification isn't guaranteed to refresh highlighting logic for the index:
+        if (state.currentSearchIndex !== oldSearchIndex && state.currentSearchIndex !== -1) { // Check if it actually changed to a valid index
+             // state.notify('currentSearchIndex'); // Potentially redundant if render() always uses latest state.currentSearchIndex
+                                                 // when 'searchResults' changes. Let's assume render is robust.
+        }
+
+        if (state.searchResults.length > 0 && state.currentSearchIndex !== -1) {
+            expandToResult(state.searchResults[state.currentSearchIndex]);
+        }
+        // No explicit 'else { state.notify('searchResults'); }' needed here as it's covered by the initial notify or the one above.
+    }
+    // Blurring is now handled by the explicit action callers (Enter in box, Search button)
+}
+
+const debouncedExecuteSearch = debounce(() => executeSearchLogic(false), 300); // 300ms delay
 
 const handleKeyboard = (e) => {
-  const searchBoxFocused = e.target.matches('.search-box') || e.target.id === 'json-browser-search-box';
+  const searchBox = document.getElementById('json-browser-search-box');
+  const searchBoxFocused = document.activeElement === searchBox;
   const jsonEditAreaFocused = e.target.id === 'json-edit-area';
   const inModal = e.target.closest('.modal');
   const inPromotePopover = e.target.closest('#promote-key-popover');
   const inAddColumnPopover = e.target.closest('#add-column-popover');
 
-  if (searchBoxFocused) {
-    if (e.key === 'Enter') {
-      e.preventDefault(); 
-      if (state.searchQuery !== e.target.value) {
-           state.searchQuery = e.target.value;
-      }
-      if (state.searchQuery.trim() === '') {
-          state.searchResults = [];
-          state.currentSearchIndex = -1;
-          return;
-      }
-      state.searchResults = performSearch(state.data, state.searchQuery);
-      state.currentSearchIndex = state.searchResults.length > 0 ? 0 : -1;
-      if (state.searchResults.length > 0) {
-          expandToResult(state.searchResults[state.currentSearchIndex]); 
-      }
-    } else if (e.key === 'Escape') {
-      e.preventDefault(); 
-      state.searchQuery = '';
-      e.target.value = ''; 
-      state.searchResults = [];
-      state.currentSearchIndex = -1;
+  // CTRL+F / CMD+F to focus search box
+  if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+    if (!jsonEditAreaFocused && !e.target.matches('textarea:not(#json-browser-search-box)')) {
+        e.preventDefault();
+        focusSearchBox();
+        return; 
     }
   }
-  
-  if (e.key === 'Escape') {
-      if (state.showAddColumnPopover) { 
-          e.preventDefault();
-          const cancelButton = document.querySelector('#add-column-popover .add-column-popover-cancel-btn');
-          if (cancelButton) cancelButton.click();
-          else {
-              closeModalFocus('#add-column-popover');
-              state.showAddColumnPopover = false;
-              if (state.addColumnPopoverAnchor) state.addColumnPopoverAnchor.focus();
-              state.addColumnPopoverAnchor = null;
-          }
-      } else if (state.showPromoteKeyPopover) {
-          e.preventDefault();
-          const cancelButton = document.querySelector('#promote-key-popover .promote-popover-cancel-btn');
-          if (cancelButton) cancelButton.click();
-          else {
-              closeModalFocus('#promote-key-popover');
-              state.showPromoteKeyPopover = false;
-              if (state.promoteKeyPopoverContext && state.promoteKeyPopoverContext.triggerElement) {
-                  state.promoteKeyPopoverContext.triggerElement.focus();
-              }
-              state.promoteKeyPopoverContext = null;
-          }
-      } else if (state.showSqlModal && inModal) {
-          e.preventDefault();
-          closeModalFocus('.modal[aria-labelledby="sql-modal-title"]');
-          state.showSqlModal = false;
-      } else if (state.showJsonModal && inModal && !jsonEditAreaFocused) {
-          e.preventDefault();
-          closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
-          state.showJsonModal = false;
-          state.jsonValidationMessage = '';
-      } else if (state.editModeActive && !searchBoxFocused && !jsonEditAreaFocused && !inModal && !inPromotePopover && !inAddColumnPopover) { 
-          e.preventDefault();
-          state.editModeActive = false;
-      }
+
+  if (e.key === 'Enter') {
+    if (searchBoxFocused) {
+      e.preventDefault();
+      executeSearchLogic(true); 
+      blurSearchBox();          
+    } else if (state.searchResults.length > 0 && lastExecutedSearchQuery !== null) {
+      e.preventDefault();
+      state.currentSearchIndex = (state.currentSearchIndex + 1) % state.searchResults.length;
+      state.notify('currentSearchIndex'); // Notify that the active search result index has changed
+      expandToResult(state.searchResults[state.currentSearchIndex]);
+    }
+  } else if (e.key === 'Escape') {
+    if (searchBoxFocused) {
+        e.preventDefault();
+        state.searchQuery = '';
+        if(searchBox) searchBox.value = '';
+        state.searchResults = [];
+        state.currentSearchIndex = -1;
+        lastExecutedSearchQuery = null; 
+        state.notify('searchResults'); // Covers currentSearchIndex update too
+        blurSearchBox(); 
+    } else if (state.showAddColumnPopover) { 
+        e.preventDefault();
+        const cancelButton = document.querySelector('#add-column-popover .add-column-popover-cancel-btn');
+        if (cancelButton) cancelButton.click();
+        else {
+            closeModalFocus('#add-column-popover');
+            state.showAddColumnPopover = false;
+            if (state.addColumnPopoverAnchor) state.addColumnPopoverAnchor.focus();
+            state.addColumnPopoverAnchor = null;
+            state.notify('showAddColumnPopover');
+        }
+    } else if (state.showPromoteKeyPopover) { 
+        e.preventDefault();
+        const cancelButton = document.querySelector('#promote-key-popover .promote-popover-cancel-btn');
+        if (cancelButton) cancelButton.click();
+        else {
+            closeModalFocus('#promote-key-popover');
+            state.showPromoteKeyPopover = false;
+            if (state.promoteKeyPopoverContext && state.promoteKeyPopoverContext.triggerElement) {
+                state.promoteKeyPopoverContext.triggerElement.focus();
+            }
+            state.promoteKeyPopoverContext = null;
+            state.notify('showPromoteKeyPopover');
+        }
+    } else if (state.showSqlModal && inModal) { 
+        e.preventDefault();
+        closeModalFocus('.modal[aria-labelledby="sql-modal-title"]');
+        state.showSqlModal = false; state.notify('showSqlModal');
+    } else if (state.showCsvModal && inModal) { 
+        e.preventDefault();
+        closeModalFocus('.modal[aria-labelledby="csv-modal-title"]');
+        state.showCsvModal = false; state.notify('showCsvModal');
+    } else if (state.showJsonModal && inModal && !jsonEditAreaFocused) { 
+        e.preventDefault();
+        closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
+        state.showJsonModal = false; state.jsonValidationMessage = '';
+        state.notify('showJsonModal');
+    } else if (state.editModeActive && !searchBoxFocused && !jsonEditAreaFocused && !inModal && !inPromotePopover && !inAddColumnPopover) {
+        e.preventDefault();
+        state.editModeActive = false; state.notify('editModeActive');
+    }
   }
 
-  if ((e.key === 'Enter' || e.key === ' ') && 
+  if ((e.key === 'Enter' || e.key === ' ') &&
       (e.target.matches('.expandable[role="button"]') || e.target.matches('th[role="button"]'))) {
-      e.preventDefault();
-      e.target.click(); 
+      if (! (e.key === 'Enter' && (searchBoxFocused || (state.searchResults.length > 0 && lastExecutedSearchQuery !== null) ) ) ) {
+        e.preventDefault();
+        e.target.click();
+      }
   }
 };
-  
+
 const handleEvent = (e) => {
-  const eventTarget = e.target; 
-  
+  const eventTarget = e.target;
+
   if (state.showAddColumnPopover) {
       const popoverElement = document.querySelector('#add-column-popover');
       const clickedAddColumnButton = eventTarget.closest('[data-action="show-add-column-popover"]');
       const clickedInsidePopover = popoverElement && popoverElement.contains(eventTarget);
       if (!clickedInsidePopover && !clickedAddColumnButton) {
           const cancelButton = document.querySelector('#add-column-popover .add-column-popover-cancel-btn');
-          if (cancelButton) cancelButton.click();
-          else {
-              closeModalFocus('#add-column-popover');
-              state.showAddColumnPopover = false;
-              if(state.addColumnPopoverAnchor) state.addColumnPopoverAnchor.focus();
-              state.addColumnPopoverAnchor = null;
-          }
+          if (cancelButton) cancelButton.click(); else { closeModalFocus('#add-column-popover'); state.showAddColumnPopover = false; if (state.addColumnPopoverAnchor) state.addColumnPopoverAnchor.focus(); state.addColumnPopoverAnchor = null; state.notify('showAddColumnPopover');}
       }
   }
   if (state.showPromoteKeyPopover) {
@@ -1979,56 +2350,62 @@ const handleEvent = (e) => {
       const clickedInsidePopover = popoverElement && popoverElement.contains(eventTarget);
       if (!clickedInsidePopover && !clickedPromoteButton) {
           const cancelButton = document.querySelector('#promote-key-popover .promote-popover-cancel-btn');
-           if (cancelButton) cancelButton.click();
-           else {
-              closeModalFocus('#promote-key-popover');
-              state.showPromoteKeyPopover = false;
-              if(state.promoteKeyPopoverContext && state.promoteKeyPopoverContext.triggerElement) {
-                   state.promoteKeyPopoverContext.triggerElement.focus();
-              }
-              state.promoteKeyPopoverContext = null;
-           }
+           if (cancelButton) cancelButton.click(); else { closeModalFocus('#promote-key-popover'); state.showPromoteKeyPopover = false; if (state.promoteKeyPopoverContext && state.promoteKeyPopoverContext.triggerElement) state.promoteKeyPopoverContext.triggerElement.focus(); state.promoteKeyPopoverContext = null; state.notify('showPromoteKeyPopover');}
       }
   }
 
-  let target = eventTarget; 
+  let target = eventTarget;
   let action = target.dataset.action;
 
   if (!action && target.closest('[data-action]')) {
       target = target.closest('[data-action]');
       action = target.dataset.action;
   }
-  if (!action) return; 
+  if (!action) return;
 
-  const { path, row, column } = target.dataset; 
-  
+  const { path, row, column } = target.dataset;
+
   switch (action) {
     case 'search': 
-      if (state.searchQuery !== target.value) { 
+      if (state.searchQuery !== target.value) {
         state.searchQuery = target.value;
-        if (state.searchQuery === '') {
+        if (state.searchQuery.trim() === '') {
             state.searchResults = [];
             state.currentSearchIndex = -1;
+            lastExecutedSearchQuery = null;
+            state.notify('searchResults'); // Covers currentSearchIndex update
+        } else {
+            debouncedExecuteSearch();
         }
       }
       break;
+    case 'execute-search': 
+        const searchInput = document.getElementById('json-browser-search-box');
+        if (searchInput && state.searchQuery !== searchInput.value) {
+            state.searchQuery = searchInput.value;
+        }
+        executeSearchLogic(false); 
+        blurSearchBox();           
+        break;
     case 'search-next':
       if (state.searchResults.length > 0) {
         state.currentSearchIndex = (state.currentSearchIndex + 1) % state.searchResults.length;
-        expandToResult(state.searchResults[state.currentSearchIndex]); 
+        state.notify('currentSearchIndex'); // Notify that the active search result index has changed
+        expandToResult(state.searchResults[state.currentSearchIndex]);
       }
       break;
     case 'search-prev':
       if (state.searchResults.length > 0) {
         state.currentSearchIndex = (state.currentSearchIndex - 1 + state.searchResults.length) % state.searchResults.length;
-        expandToResult(state.searchResults[state.currentSearchIndex]); 
+        state.notify('currentSearchIndex'); // Notify that the active search result index has changed
+        expandToResult(state.searchResults[state.currentSearchIndex]);
       }
       break;
     case 'toggle':
-      const expandKey = `${row}-${path}`; 
+      const expandKey = `${row}-${path}`;
       if (state.expandedPaths.has(expandKey)) state.expandedPaths.delete(expandKey);
       else state.expandedPaths.add(expandKey);
-      state.notify('expandedPaths'); 
+      state.notify('expandedPaths');
       break;
     case 'expand-all':
       state.data.forEach((rowData, rowIndex) => {
@@ -2042,32 +2419,35 @@ const handleEvent = (e) => {
       break;
     case 'toggle-paths':
       state.showPaths = !state.showPaths;
+      state.notify('showPaths');
       break;
     case 'toggle-edit-mode':
       state.editModeActive = !state.editModeActive;
-      if (!state.editModeActive) { 
-          if (state.showPromoteKeyPopover) { state.showPromoteKeyPopover = false; state.promoteKeyPopoverContext = null; }
-          if (state.showAddColumnPopover) { state.showAddColumnPopover = false; state.addColumnPopoverAnchor = null; }
+      if (!state.editModeActive) {
+          if (state.showPromoteKeyPopover) { state.showPromoteKeyPopover = false; state.promoteKeyPopoverContext = null; state.notify('showPromoteKeyPopover'); }
+          if (state.showAddColumnPopover) { state.showAddColumnPopover = false; state.addColumnPopoverAnchor = null; state.notify('showAddColumnPopover'); }
       }
+      state.notify('editModeActive'); 
       break;
     case 'promote-value':
-      const pathClicked = target.dataset.pathToValue; 
+      const pathClicked = target.dataset.pathToValue;
       const rowIndexForContext = parseInt(target.dataset.rowIndex);
-      const rowData = state.data[rowIndexForContext]; 
+      const rowData = state.data[rowIndexForContext];
       const lastDotIndex = pathClicked.lastIndexOf('.');
-      if (lastDotIndex === -1) { 
+      if (lastDotIndex === -1) {
           if (!state.visibleColumns.includes(pathClicked)) {
               state.visibleColumns = [...state.visibleColumns, pathClicked];
-              updateAllPossibleColumns(); 
+              updateAllPossibleColumns();
+              state.notify('visibleColumns');
           }
-          if (state.showPromoteKeyPopover) { state.showPromoteKeyPopover = false; state.promoteKeyPopoverContext = null; }
-          break; 
+          if (state.showPromoteKeyPopover) { state.showPromoteKeyPopover = false; state.promoteKeyPopoverContext = null; state.notify('showPromoteKeyPopover'); }
+          break;
       }
-      const parentObjectPath = pathClicked.substring(0, lastDotIndex); 
-      const fieldName = pathClicked.substring(lastDotIndex + 1);      
-      const arrayElementMatch = parentObjectPath.match(/^(.*)\[(\d+)\]$/); 
-      if (arrayElementMatch) { 
-          const pathToArrayElement = parentObjectPath; 
+      const parentObjectPath = pathClicked.substring(0, lastDotIndex);
+      const fieldName = pathClicked.substring(lastDotIndex + 1);
+      const arrayElementMatch = parentObjectPath.match(/^(.*)\[(\d+)\]$/);
+      if (arrayElementMatch) {
+          const pathToArrayElement = parentObjectPath;
           const objectInArray = getValue(rowData, pathToArrayElement);
           if (objectInArray && typeof objectInArray === 'object' && !Array.isArray(objectInArray)) {
               const siblingKeysAndValues = [];
@@ -2079,36 +2459,38 @@ const handleEvent = (e) => {
               }
               if (siblingKeysAndValues.length > 0) {
                   state.promoteKeyPopoverContext = {
-                      rowIndex: rowIndexForContext, originalPathToValue: pathClicked,    
-                      pathToArrayElement: pathToArrayElement, valueFieldName: fieldName,           
+                      rowIndex: rowIndexForContext, originalPathToValue: pathClicked,
+                      pathToArrayElement: pathToArrayElement, valueFieldName: fieldName,
                       targetElementRect: target.getBoundingClientRect(), siblingKeysAndValues,
                       triggerElement: target,
                   };
                   state.showPromoteKeyPopover = true;
+                  state.notify('showPromoteKeyPopover');
                   return; 
               }
           }
       }
       if (!state.visibleColumns.includes(pathClicked)) {
           state.visibleColumns = [...state.visibleColumns, pathClicked];
-          updateAllPossibleColumns(); 
+          updateAllPossibleColumns();
+          state.notify('visibleColumns');
       }
-      if (state.showPromoteKeyPopover) { state.showPromoteKeyPopover = false; state.promoteKeyPopoverContext = null; }
+      if (state.showPromoteKeyPopover) { state.showPromoteKeyPopover = false; state.promoteKeyPopoverContext = null; state.notify('showPromoteKeyPopover');}
       break;
     case 'confirm-promote-with-key':
       if (!state.promoteKeyPopoverContext) break;
       const { rowIndex, originalPathToValue, pathToArrayElement, valueFieldName, triggerElement: promoteTrigger } = state.promoteKeyPopoverContext;
-      const selectedKeyForId = target.dataset.selectedKey; 
+      const selectedKeyForId = target.dataset.selectedKey;
       const rowDataForPromotion = state.data[rowIndex];
       let pathToPromote;
       if (selectedKeyForId === 'INDEX') {
-          pathToPromote = originalPathToValue; 
+          pathToPromote = originalPathToValue;
       } else {
-          const arrayBasePath = pathToArrayElement.substring(0, pathToArrayElement.lastIndexOf('[')); 
-          const objectInArray = getValue(rowDataForPromotion, pathToArrayElement); 
+          const arrayBasePath = pathToArrayElement.substring(0, pathToArrayElement.lastIndexOf('['));
+          const objectInArray = getValue(rowDataForPromotion, pathToArrayElement);
           if (objectInArray && typeof objectInArray === 'object' && objectInArray.hasOwnProperty(selectedKeyForId)) {
               const identifyingKeyValue = String(objectInArray[selectedKeyForId]);
-              const safeIdentifyingKeyValue = identifyingKeyValue.replace(/"/g, '\\"'); 
+              const safeIdentifyingKeyValue = identifyingKeyValue.replace(/"/g, '\\"');
               pathToPromote = `${arrayBasePath}[${selectedKeyForId}="${safeIdentifyingKeyValue}"].${valueFieldName}`;
           } else {
               pathToPromote = originalPathToValue;
@@ -2117,11 +2499,13 @@ const handleEvent = (e) => {
       }
       if (!state.visibleColumns.includes(pathToPromote)) {
           state.visibleColumns = [...state.visibleColumns, pathToPromote];
-          updateAllPossibleColumns(); 
+          updateAllPossibleColumns();
+          state.notify('visibleColumns');
       }
       closeModalFocus('#promote-key-popover');
       state.showPromoteKeyPopover = false;
       state.promoteKeyPopoverContext = null;
+      state.notify('showPromoteKeyPopover');
       if (promoteTrigger) requestAnimationFrame(() => promoteTrigger.focus());
       break;
     case 'cancel-promote-popover':
@@ -2129,23 +2513,31 @@ const handleEvent = (e) => {
       closeModalFocus('#promote-key-popover');
       state.showPromoteKeyPopover = false;
       state.promoteKeyPopoverContext = null;
+      state.notify('showPromoteKeyPopover');
       if (promoteAnchor) requestAnimationFrame(() => promoteAnchor.focus());
       break;
     case 'sort':
-        const sortColumn = decodeURIComponent(column); 
+        const sortColumn = decodeURIComponent(column);
         if (state.sortBy === sortColumn) state.sortDirection = state.sortDirection === 'asc' ? 'desc' : 'asc';
         else { state.sortBy = sortColumn; state.sortDirection = 'asc'; }
+        state.notify('sort');
         break;
-    case 'remove-column-header': 
+    case 'remove-column-header':
         const colToRemove = decodeURIComponent(target.dataset.column);
         state.visibleColumns = state.visibleColumns.filter(c => c !== colToRemove);
-        if (state.sortBy === colToRemove) state.sortBy = null; 
+        if (state.sortBy === colToRemove) { state.sortBy = null; state.sortDirection = 'asc'; } // Reset sort if sorted column is removed
+        state.notify('visibleColumns'); // Notify about visibleColumns change
+        state.notify('sort'); // Also notify sort, in case sortBy was reset
         break;
-    case 'show-sql': state.showSqlModal = true; break;
-    case 'close-sql': closeModalFocus('.modal[aria-labelledby="sql-modal-title"]'); state.showSqlModal = false; break;
-    case 'change-dialect': state.sqlDialect = target.value; break;
+    case 'show-sql': state.showSqlModal = true; state.notify('showSqlModal'); break;
+    case 'close-sql':
+      closeModalFocus('.modal[aria-labelledby="sql-modal-title"]');
+      state.showSqlModal = false;
+      state.notify('showSqlModal');
+      break;
+    case 'change-dialect': state.sqlDialect = target.value; state.notify('sqlDialect'); break;
     case 'copy-sql':
-      { 
+      {
         const sqlOutputElement = document.querySelector('.sql-output');
         if (sqlOutputElement) {
           navigator.clipboard.writeText(sqlOutputElement.value).then(() => {
@@ -2157,8 +2549,8 @@ const handleEvent = (e) => {
         }
       }
       break;
-    case 'show-json': 
-      if (!state.showJsonModal) { 
+    case 'show-json':
+      if (!state.showJsonModal) {
         try {
           state.rawJsonEditContent = state.data.length > 0 ? JSON.stringify(state.data, null, 2) : '';
         } catch (e) {
@@ -2168,10 +2560,12 @@ const handleEvent = (e) => {
         state.jsonValidationMessage = state.data.length === 0 ? 'Paste or load data.' : '';
       }
       state.showJsonModal = true;
+      state.notify('showJsonModal'); 
       break;
     case 'close-json':
       closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
-      state.showJsonModal = false; state.jsonValidationMessage = ''; 
+      state.showJsonModal = false; state.jsonValidationMessage = '';
+      state.notify('showJsonModal');
       break;
     case 'trigger-file-load':
       document.getElementById('json-file-input')?.click();
@@ -2181,6 +2575,8 @@ const handleEvent = (e) => {
       const jsonEditAreaForClear = document.getElementById('json-edit-area');
       if (jsonEditAreaForClear) jsonEditAreaForClear.value = '';
       state.jsonValidationMessage = 'Paste or load data.';
+      state.notify('rawJsonEditContent'); 
+      state.notify('jsonValidationMessage');
       break;
     case 'select-all-json':
       const jsonEditAreaSelect = document.getElementById('json-edit-area');
@@ -2191,13 +2587,15 @@ const handleEvent = (e) => {
       if (jsonEditAreaCopy) {
           navigator.clipboard.writeText(jsonEditAreaCopy.value).then(() => {
               state.jsonValidationMessage = '<span style="color: green;">Copied to clipboard!</span>';
+              state.notify('jsonValidationMessage');
           }).catch(err => {
               console.error('Failed to copy JSON: ', err);
               state.jsonValidationMessage = '<span style="color: red;">Failed to copy.</span>';
+              state.notify('jsonValidationMessage');
           });
       }
       break;
-    case 'validate-json': 
+    case 'validate-json':
       try {
         const jsonEditAreaVal = document.getElementById('json-edit-area');
         const currentTextVal = jsonEditAreaVal ? jsonEditAreaVal.value : state.rawJsonEditContent;
@@ -2207,24 +2605,27 @@ const handleEvent = (e) => {
       } catch (err) {
         state.jsonValidationMessage = `<span style="color: red;">Invalid JSON: ${err.message}</span>`;
       }
+      state.notify('jsonValidationMessage'); 
+      state.notify('rawJsonEditContent');   
       break;
     case 'apply-json-changes':
       {
           const jsonEditAreaApply = document.getElementById('json-edit-area');
-          const currentTextApply = jsonEditAreaApply ? jsonEditAreaApply.value : state.rawJsonEditContent; 
+          const currentTextApply = jsonEditAreaApply ? jsonEditAreaApply.value : state.rawJsonEditContent;
           let parsedData = null; let parseMethod = ''; let detectedHeaders = [];
           robustParseCSV.lastHeaders = []; 
           if (currentTextApply.trim() === '') { parsedData = []; parseMethod = 'empty'; }
           else {
               try {
-                  const jsonData = JSON.parse(currentTextApply); 
+                  const jsonData = JSON.parse(currentTextApply);
                   if (Array.isArray(jsonData)) { parsedData = jsonData; parseMethod = 'JSON'; }
                   else if (typeof jsonData === 'object' && jsonData !== null) { parsedData = [jsonData]; parseMethod = 'JSON (single object)';}
-              } catch (e) { /* JSON parse failed */ }
-              if (parsedData === null) {
+              } catch (e) {  }
+
+              if (parsedData === null) { 
                   try {
                       const delimiter = detectDelimiter(currentTextApply.substring(0, Math.min(currentTextApply.length, 2000)));
-                      const csvObjects = robustParseCSV(currentTextApply, delimiter); 
+                      const csvObjects = robustParseCSV(currentTextApply, delimiter);
                       detectedHeaders = robustParseCSV.lastHeaders; 
                       if (csvObjects.length > 0 || (detectedHeaders.length > 0 && detectedHeaders.some(h => h !== ''))) {
                          parsedData = csvObjects; parseMethod = delimiter === '\t' ? 'TSV' : 'CSV';
@@ -2233,60 +2634,75 @@ const handleEvent = (e) => {
                   } catch (csvErr) { console.error("CSV parsing error during apply:", csvErr); }
               }
           }
+
           if (parsedData !== null) {
               state.data = parsedData;
-              closeModalFocus('.modal[aria-labelledby="json-modal-title"]'); 
+              closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
               state.showJsonModal = false; state.jsonValidationMessage = '';
               let newVisibleColumns = [];
-              if (detectedHeaders.length > 0) newVisibleColumns = detectedHeaders;
-              else if (state.data.length > 0 && typeof state.data[0] === 'object' && state.data[0] !== null) newVisibleColumns = Object.keys(state.data[0]);
+              if (detectedHeaders.length > 0 && detectedHeaders.some(h => h && h.trim() !== '')) {
+                newVisibleColumns = detectedHeaders.filter(h => h && h.trim() !== '');
+              } else if (state.data.length > 0 && typeof state.data[0] === 'object' && state.data[0] !== null) {
+                newVisibleColumns = Object.keys(state.data[0]); 
+              }
               state.visibleColumns = newVisibleColumns;
               updateAllPossibleColumns(); 
               state.searchQuery = ''; state.searchResults = []; state.currentSearchIndex = -1;
+              lastExecutedSearchQuery = null; 
               state.expandedPaths.clear(); state.sortBy = null;
-              state.notify('data'); 
+              state.notify('dataApplied'); 
               console.log(`Data applied successfully using ${parseMethod} parser.`);
           } else {
               state.jsonValidationMessage = '<span style="color: red;">Cannot apply: Invalid data format. Not recognized as JSON, CSV, or TSV.</span>';
+              state.notify('jsonValidationMessage');
           }
       }
       break;
     case 'show-add-column-popover':
       state.addColumnPopoverAnchor = target; state.showAddColumnPopover = true;
+      state.notify('showAddColumnPopover');
       break;
     case 'cancel-add-column-popover':
       const addColumnAnchor = state.addColumnPopoverAnchor;
       closeModalFocus('#add-column-popover');
       state.showAddColumnPopover = false; state.addColumnPopoverAnchor = null;
+      state.notify('showAddColumnPopover');
       if (addColumnAnchor) requestAnimationFrame(() => addColumnAnchor.focus());
       break;
     case 'add-column-from-popover':
       const columnToAdd = target.dataset.columnToAdd;
       if (columnToAdd && !state.visibleColumns.includes(columnToAdd)) {
           state.visibleColumns = [...state.visibleColumns, columnToAdd];
+          state.notify('visibleColumns');
       }
       break;
     case 'reset-view':
       state.searchQuery = '';
-      const searchBox = document.getElementById('json-browser-search-box');
-      if (searchBox) searchBox.value = '';
+      const searchBoxReset = document.getElementById('json-browser-search-box');
+      if (searchBoxReset) searchBoxReset.value = '';
       state.searchResults = []; state.currentSearchIndex = -1;
-      state.sortBy = null; state.expandedPaths.clear();
+      lastExecutedSearchQuery = null; 
+      state.sortBy = null; state.sortDirection = 'asc'; state.expandedPaths.clear();
+
       let resetToColumns = [];
       if (robustParseCSV.lastHeaders && robustParseCSV.lastHeaders.length > 0 && robustParseCSV.lastHeaders.some(h => h && h.trim() !== '')) {
           resetToColumns = robustParseCSV.lastHeaders.filter(h => h && h.trim() !== '');
-      } 
+      }
       else if (state.data.length > 0 && state.data[0] && typeof state.data[0] === 'object' && state.data[0] !== null) {
           resetToColumns = Object.keys(state.data[0]);
       }
       state.visibleColumns = [...resetToColumns];
-      updateAllPossibleColumns(); 
-      break;    
+      updateAllPossibleColumns();
+      state.notify('viewReset');
+      break;
     case 'show-csv':
       state.csvOutputContent = generateCSV(); state.showCsvModal = true;
+      state.notify('showCsvModal');
       break;
     case 'close-csv':
-      closeModalFocus('.modal[aria-labelledby="csv-modal-title"]'); state.showCsvModal = false;
+      closeModalFocus('.modal[aria-labelledby="csv-modal-title"]');
+      state.showCsvModal = false;
+      state.notify('showCsvModal');
       break;
     case 'copy-csv':
       {
@@ -2315,110 +2731,147 @@ const handleEvent = (e) => {
         }
       }
       break;
+
   }
 };
 
 const init = async () => {
   try {
     let rawDataInput; let dataSuccessfullyLoaded = false;
-    robustParseCSV.lastHeaders = []; 
-    if (typeof jsonData !== 'undefined') { rawDataInput = jsonData; console.log("Global `jsonData` found."); }
-    else { rawDataInput = null; console.log("Global `jsonData` not found."); }
+    robustParseCSV.lastHeaders = [];
+    if (typeof window.jsonData !== 'undefined') {
+        rawDataInput = window.jsonData;
+        console.log("Global `jsonData` found and used.");
+    } else {
+        rawDataInput = null;
+        console.log("Global `jsonData` not found.");
+    }
 
     if (rawDataInput !== null) {
-      if (Array.isArray(rawDataInput)) { state.data = rawDataInput; dataSuccessfullyLoaded = true; }
-      else if (typeof rawDataInput === 'string') {
+      if (Array.isArray(rawDataInput)) {
+          state.data = rawDataInput; dataSuccessfullyLoaded = true;
+      } else if (typeof rawDataInput === 'string') {
           try {
               const parsedJsonAttempt = JSON.parse(rawDataInput);
               if (Array.isArray(parsedJsonAttempt)) state.data = parsedJsonAttempt;
               else if (typeof parsedJsonAttempt === 'object' && parsedJsonAttempt !== null) state.data = [parsedJsonAttempt];
-              else {
+              else { // If not array or object, try CSV/TSV (e.g. if it's just a string "foo" which is valid JSON)
                   const delimiter = detectDelimiter(rawDataInput.substring(0, Math.min(rawDataInput.length, 2000)));
-                  state.data = robustParseCSV(rawDataInput, delimiter); 
+                  state.data = robustParseCSV(rawDataInput, delimiter);
               }
               dataSuccessfullyLoaded = true;
           } catch (e) {
+              console.warn("Initial data (string) parsing as JSON failed, trying CSV/TSV.", e);
               const delimiter = detectDelimiter(rawDataInput.substring(0, Math.min(rawDataInput.length, 2000)));
-              state.data = robustParseCSV(rawDataInput, delimiter); 
-              dataSuccessfullyLoaded = true; 
+              state.data = robustParseCSV(rawDataInput, delimiter); // robustParseCSV handles empty/malformed
+              dataSuccessfullyLoaded = true;
           }
-      } else if (typeof rawDataInput === 'object' && rawDataInput !== null) { state.data = [rawDataInput]; dataSuccessfullyLoaded = true; }
+      } else if (typeof rawDataInput === 'object' && rawDataInput !== null) {
+          state.data = [rawDataInput]; dataSuccessfullyLoaded = true;
+      }
     }
-    if (!dataSuccessfullyLoaded || !Array.isArray(state.data)) state.data = []; 
-    
-    let initialVisible = [];
-    if (robustParseCSV.lastHeaders && robustParseCSV.lastHeaders.length > 0) initialVisible = robustParseCSV.lastHeaders;
-    else if (state.data.length > 0 && typeof state.data[0] === 'object' && state.data[0] !== null) initialVisible = Object.keys(state.data[0]);
-    state.visibleColumns = initialVisible;
-    updateAllPossibleColumns(); 
+    if (!dataSuccessfullyLoaded || !Array.isArray(state.data)) state.data = [];
 
-    if (state.data.length === 0 && typeof jsonData === 'undefined') { 
+    let initialVisible = [];
+    if (robustParseCSV.lastHeaders && robustParseCSV.lastHeaders.length > 0 && robustParseCSV.lastHeaders.some(h => h && h.trim() !== '')) {
+        initialVisible = robustParseCSV.lastHeaders.filter(h => h && h.trim() !== '');
+    } else if (state.data.length > 0 && typeof state.data[0] === 'object' && state.data[0] !== null) {
+        initialVisible = Object.keys(state.data[0]);
+    }
+    state.visibleColumns = initialVisible;
+    updateAllPossibleColumns();
+
+    if (state.data.length === 0 && typeof window.jsonData === 'undefined') {
       state.showJsonModal = true; state.rawJsonEditContent = '';
       state.jsonValidationMessage = 'Paste JSON, CSV, or TSV data, or load from file.';
     }
-    
-    state.subscribe(() => {
+
+    state.subscribe((changedProperty) => {
         const wasSqlModalVisible = !!document.querySelector('.modal[aria-labelledby="sql-modal-title"]');
         const wasJsonModalVisible = !!document.querySelector('.modal[aria-labelledby="json-modal-title"]');
-        const wasAddColumnPopoverVisible = state.showAddColumnPopover; 
-        const wasPromotePopoverVisible = state.showPromoteKeyPopover;
         const wasCsvModalVisible = !!document.querySelector('.modal[aria-labelledby="csv-modal-title"]');
+        const wasAddColumnPopoverVisible = !!document.getElementById('add-column-popover'); // Check actual element existence
+        const wasPromotePopoverVisible = !!document.getElementById('promote-key-popover'); // Check actual element existence
+        
         render();
+
         if (state.showSqlModal && !wasSqlModalVisible) openModalFocus('.modal[aria-labelledby="sql-modal-title"]');
         if (state.showJsonModal && !wasJsonModalVisible) {
             const jsonModal = document.querySelector('.modal[aria-labelledby="json-modal-title"]');
-            if (!jsonModal || !jsonModal.contains(document.activeElement)) openModalFocus('.modal[aria-labelledby="json-modal-title"]');
+            // Only focus if the modal itself or one of its children doesn't already have focus
+            if (!jsonModal || !jsonModal.contains(document.activeElement)) {
+                openModalFocus('.modal[aria-labelledby="json-modal-title"]');
+            }
         }
-        if (state.showAddColumnPopover && !wasAddColumnPopoverVisible) openModalFocus('#add-column-popover');
-        if (state.showPromoteKeyPopover && !wasPromotePopoverVisible) openModalFocus('#promote-key-popover');
         if (state.showCsvModal && !wasCsvModalVisible) openModalFocus('.modal[aria-labelledby="csv-modal-title"]');
-    }); 
-    
+        // For popovers, focus logic is often tied to their anchor or first focusable element within.
+        // openModalFocus for popovers should be called after they are rendered and visible.
+        if (state.showAddColumnPopover && !wasAddColumnPopoverVisible) {
+             requestAnimationFrame(() => openModalFocus('#add-column-popover'));
+        }
+        if (state.showPromoteKeyPopover && !wasPromotePopoverVisible) {
+            requestAnimationFrame(() => openModalFocus('#promote-key-popover'));
+        }
+    });
+
     document.addEventListener('click', handleEvent);
-    document.addEventListener('input', (e) => { 
+    document.addEventListener('input', (e) => {
       const target = e.target;
-      if (target.id === 'json-browser-search-box' && target.value === '' && state.searchQuery !== '') { 
-          state.searchQuery = ''; state.searchResults = []; state.currentSearchIndex = -1;
-      } else if (target.id === 'json-edit-area') { 
-          if (state.rawJsonEditContent !== target.value) state.rawJsonEditContent = target.value;
-          if (state.jsonValidationMessage && (state.jsonValidationMessage.includes('red') || state.jsonValidationMessage.includes('green') || state.jsonValidationMessage.startsWith("Paste") || state.jsonValidationMessage.startsWith("File loaded") || state.jsonValidationMessage.startsWith("File dropped"))) {
-              state.jsonValidationMessage = ''; 
+      if (target.id === 'json-browser-search-box') {
+          handleEvent(e); 
+      } else if (target.id === 'json-edit-area') {
+          if (state.rawJsonEditContent !== target.value) {
+              state.rawJsonEditContent = target.value;
+          }
+          // Clear validation message on input if it's an error/success message or initial prompt
+          if (state.jsonValidationMessage && (state.jsonValidationMessage.includes('color: red') || state.jsonValidationMessage.includes('color: green') || state.jsonValidationMessage.startsWith("Paste") || state.jsonValidationMessage.startsWith("File loaded") || state.jsonValidationMessage.startsWith("File dropped"))) {
+              state.jsonValidationMessage = ''; // Just clear, don't notify yet, render will pick it up or further actions.
+              state.notify('jsonValidationMessage'); // Explicitly notify to clear message from UI
           }
       }
     });
-    document.addEventListener('change', (e) => { 
+    document.addEventListener('change', (e) => {
       const target = e.target;
       if (target?.dataset?.action === "change-dialect") handleEvent(e);
-      else if (target.id === 'json-file-input') { 
+      else if (target.id === 'json-file-input' && target.files) {
           const file = target.files[0];
           if (file) {
               const reader = new FileReader();
               reader.onload = (loadEvent) => {
-                  state.rawJsonEditContent = loadEvent.target.result;
-                  state.jsonValidationMessage = 'File loaded. Validate JSON or Apply & Close.';
-                  target.value = null; 
+                  if (loadEvent.target && typeof loadEvent.target.result === 'string') {
+                      state.rawJsonEditContent = loadEvent.target.result;
+                      state.jsonValidationMessage = 'File loaded. Validate JSON or Apply & Close.';
+                       // Notify both raw content and validation message to ensure UI updates
+                      state.notify('rawJsonEditContent');
+                      state.notify('jsonValidationMessage'); 
+                  } else {
+                      state.jsonValidationMessage = '<span style="color: red;">Error: Could not read file content.</span>';
+                      state.notify('jsonValidationMessage');
+                  }
+                  target.value = ''; // Reset file input
               };
               reader.onerror = () => {
                   state.jsonValidationMessage = '<span style="color: red;">Error reading file.</span>';
-                  target.value = null; 
+                  state.notify('jsonValidationMessage');
+                  target.value = ''; // Reset file input
               };
               reader.readAsText(file);
           }
       }
     });
-    document.addEventListener('keydown', handleKeyboard);
+    document.addEventListener('keydown', handleKeyboard); 
     render(); 
   } catch (error) {
     console.error('Initialization error:', error);
     const appElement = document.getElementById('app');
-    if (appElement) appElement.innerHTML = `<div class="no-results" style="color: red; border: 1px solid red; padding: 20px;">Error: ${error.message}</div>`;
+    if (appElement) appElement.innerHTML = `<div class="no-results" style="color: red; border: 1px solid red; padding: 20px;">Initialization Error: ${error.message}<br><pre>${error.stack}</pre></div>`;
   }
 };
 
-if (typeof jsonData === 'undefined' && (document.readyState === 'loading' || document.readyState === 'interactive')) {
+if (typeof window.jsonData === 'undefined' && (document.readyState === 'loading' || document.readyState === 'interactive')) {
   document.addEventListener('DOMContentLoaded', init);
 } else {
-  init(); 
+  init();
 }
 // --- END OF INLINED basic.js (entry point) ---
 
