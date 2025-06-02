@@ -1,4 +1,3 @@
-// utils.js
 
 export const escapeStringForDataAttribute = (str) => {
   if (typeof str !== 'string') return str;
@@ -194,13 +193,10 @@ export const processCellValueForRecord = (valueString) => {
        (trimmedValue.startsWith('[') && trimmedValue.endsWith(']')))) {
       try {
           return JSON.parse(trimmedValue);
-      } catch (e1) {
-          try {
-              const repairedJSONString = trimmedValue.replace(/""/g, '"');
-              return JSON.parse(repairedJSONString);
-          } catch (e2) {
-              return valueString; 
-          }
+      } catch (e) {
+          // If parsing fails, it's either not JSON or malformed JSON.
+          // Return the original string as is.
+          return valueString; 
       }
   }
   return valueString;
@@ -227,43 +223,76 @@ export const robustParseCSV = (csvString, delimiter = '\t') => {
 
       if (inQuotedField) {
           if (char === '"') {
+              // Check for escaped quote (RFC 4180 compliant: "")
               if (i + 1 < csvString.length && csvString[i + 1] === '"') {
-                  currentField += '"';
-                  i++; 
-              } else {
-                  inQuotedField = false;
+                  currentField += '"'; // Add one quote to the field
+                  i++; // And skip the second quote of the pair
+              }
+              // Lenient check: Is this quote a field terminator?
+              // A quote terminates a field if it's the last char, or followed by a delimiter or newline.
+              else if (
+                  (i + 1 === csvString.length) || // End of the entire string
+                  (i + 1 < csvString.length && (csvString[i + 1] === delimiter || csvString[i + 1] === '\n'))
+              ) {
+                  inQuotedField = false; // End of quoted field. The quote itself is not part of the data.
+              }
+              // Lenient part: If it's a quote, but not an RFC-escaped one, and not a field terminator
+              // (e.g., a quote inside a JSON string that wasn't CSV-escaped), treat it as literal data.
+              else {
+                  currentField += char; // Add the quote as data
               }
           } else {
-              currentField += char; 
+              currentField += char; // Append other characters (including newline) to current field
           }
-      } else { 
+      } else { // Not in a quoted field
           if (char === '"') {
-              if (currentField === "") { 
+              // If we are not in a quoted field and we see a quote:
+              // If currentField is empty, it's the start of a new quoted field.
+              if (currentField.length === 0) {
                   inQuotedField = true;
+                  // The quote itself is not added to currentField here; it's a wrapper.
               } else {
-                  currentField += char; 
+                  // A quote appears in an unquoted field, not at the start. Treat as literal.
+                  currentField += char;
               }
           } else if (char === delimiter) {
               currentRow.push(currentField);
               currentField = "";
           } else if (char === '\n') {
-              currentRow.push(currentField);
-              currentField = "";
-
-              if (headers.length === 0) {
-                  headers = currentRow.map(h => h.trim());
+                            // Heuristic for unquoted newlines within fields:
+              // If headers are parsed, and we haven't collected all expected fields for the current row yet
+              // (i.e., number of fields in currentRow is less than total headers - 1),
+              // and the current field has content, assume this newline is part of the current field.
+              // This handles unquoted newlines in fields that are not the last field of a record,
+              // assuming records are not sparse (i.e., all delimiters are present).
+              if (headers.length > 0 && 
+                  currentRow.length < headers.length - 1 &&  // We expect more delimiters on this logical line
+                  currentField.length > 0                   // Current field is not empty
+                 ) {
+                  currentField += char; // Append newline to currentField and continue to next char
               } else {
-                  if (currentRow.some(val => val !== undefined && (typeof val === 'string' ? val.trim() !== '' : true))) {
-                      const record = {};
-                      headers.forEach((header, index) => {
-                          const H = header || `_col_${index+1}`;
-                          const rawValue = currentRow[index] !== undefined ? currentRow[index] : "";
-                          record[H] = processCellValueForRecord(rawValue);
-                      });
-                      objects.push(record);
+                  // Original logic: Treat newline as a row delimiter
+                  currentRow.push(currentField);
+                  currentField = "";
+
+                  if (headers.length === 0) {
+                      // First row, assume it's headers
+                      headers = currentRow.map(h => h.trim());
+                  } else {
+                      // Data row
+                      // Ensure record creation only if row has some substance
+                      if (currentRow.some(val => val !== undefined && (typeof val === 'string' ? val.trim() !== '' : true))) {
+                          const record = {};
+                          headers.forEach((header, index) => {
+                              const H = header || `_col_${index+1}`; // Use header or generate one if empty
+                              const rawValue = currentRow[index] !== undefined ? currentRow[index] : "";
+                              record[H] = processCellValueForRecord(rawValue);
+                          });
+                          objects.push(record);
+                      }
                   }
+                  currentRow = []; // Reset for next row
               }
-              currentRow = [];
           } else {
               currentField += char;
           }
@@ -276,6 +305,11 @@ export const robustParseCSV = (csvString, delimiter = '\t') => {
   if (currentRow.length > 0) {
       if (headers.length === 0) { 
           headers = currentRow.map(h => h.trim());
+          // If headers were derived from the only line, and it wasn't an empty line,
+          // there are no data objects to create.
+          if (objects.length === 0 && !currentRow.every(f => f === "")) {
+              // Do not create an empty object if this was the header line.
+          }
       } else {
           if (currentRow.some(val => val !== undefined && (typeof val === 'string' ? val.trim() !== '' : true))) {
               const record = {};
@@ -315,6 +349,9 @@ export const detectDelimiter = (textSample) => {
   const presentDelimiters = delimiters.filter(d => d.count > 0);
 
   if (presentDelimiters.length === 0) {
+      // If no common delimiters found, check if it might be single-column data
+      // (e.g., a list of JSON objects, each on a new line, without typical CSV delimiters)
+      // In such cases, any delimiter would work, but ',' is a common default.
       return ',';
   }
 
@@ -331,3 +368,4 @@ export function debounce(func, delay) {
         }, delay);
     };
 }
+
