@@ -2,6 +2,12 @@
 
 ---
 
+## Quick Start
+Download and open jsonBrowser.html from the root repo directory
+Copy and paste SQL query results from your SQL Query tool into the textbox and hit "Apply"
+
+---
+
 ## Introduction
 
 Sick of having to pick apart JSON data buried in your database tables? Hate wasting time trying to figure out how to get a SQL query to properly parse the JSON?
