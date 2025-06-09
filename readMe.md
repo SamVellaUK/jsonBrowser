@@ -3,7 +3,7 @@
 ---
 
 ## Quick Start
-Download and open jsonBrowser.html from the root repo directory
+Download and open **jsonBrowser.html** from the root repo directory. 
 Copy and paste SQL query results from your SQL Query tool into the textbox and hit "Apply"
 
 ---
