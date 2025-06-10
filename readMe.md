@@ -2,22 +2,27 @@
 
 ---
 
+## Quick Start
+Download and open **jsonBrowser.html** from the project root directory.  
+Copy and paste SQL query results from your SQL Query tool into the textbox and hit "Apply"
+
+---
+
 ## Introduction
 
 Sick of having to pick apart JSON data buried in your database tables? Hate wasting time trying to figure out how to get a SQL query to properly parse the JSON?
 
 Copy and Paste (or save to file) your query data and load it into jsonBrowser. 
 
-- Navigate through the **nested objects**
-- Use the **Search function** to find Keys and Values at any depth
-- Use the edit function to **promote/flatten elements** to the top level
-- Hit the SQL button to get a usable **SQL Query** you can feedback to your SQL Editor
+- Navigate through the **nested objects**.
+- Use the **Search function** to find Keys and Values at any depth.
+- Use the edit function to **promote/flatten elements** to the top level.
+- Hit the SQL button to get a usable **SQL Query** you can feedback to your SQL Editor.
+- **Export** the table to CSV.
 
 
 Fully offline.
-No External JavaScript Libraries 
-Zero privacy issues
-
+No External JavaScript Libraries, Zero privacy issues
 
 ---
 
