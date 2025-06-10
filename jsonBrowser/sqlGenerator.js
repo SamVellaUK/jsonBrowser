@@ -1,6 +1,13 @@
+// --- START OF NEW FILE sqlGenerator.js ---
+
 const sqlEscapeString = (str) => {
     if (str === null || str === undefined) return 'NULL';
     return str.replace(/'/g, "''");
+};
+
+const toSQLServerJsonPath = (path) => {
+    if (!path) return '$';
+    return '$.' + path;
 };
 
 const buildBaseAccessPath = (fullItemPath, rootDbColumnName, dbDialect, tableAlias = null, forFlattenInput = false) => {
@@ -10,34 +17,31 @@ const buildBaseAccessPath = (fullItemPath, rootDbColumnName, dbDialect, tableAli
         pathWithinRoot = pathWithinRoot.substring(1);
     }
 
+    // If we are selecting a top-level column (no path inside it) for a standard SELECT,
+    // just return the column name directly without any JSON functions.
+    if (!pathWithinRoot && !forFlattenInput) {
+        return `${pathPrefix}"${rootDbColumnName}"`;
+    }
+
     if (dbDialect === 'postgresql') {
         let pgPath = `${pathPrefix}"${rootDbColumnName}"`;
-        // If no pathWithinRoot, it means we are accessing the rootDbColumnName itself.
-        // If forFlattenInput, return as is (expecting JSONB input for functions like jsonb_array_elements,
-        // actual cast to jsonb will be handled at call site if root is json).
-        // If for SELECT, cast to text.
         if (!pathWithinRoot) return forFlattenInput ? pgPath : `${pgPath}::text`;
 
         const segments = pathWithinRoot.replace(/\[(\d+)\]/g, '.$1').split('.');
         segments.forEach((seg, idx) => {
             const isLastSegment = idx === segments.length - 1;
-            // For intermediate paths or for FLATTEN input, use '->'
-            // For the final segment in a SELECT, use '->>' to get text
             pgPath += (forFlattenInput || !isLastSegment) ? '->' : '->>';
-            if (seg.match(/^\d+$/)) pgPath += seg; // Array index
-            else pgPath += `'${sqlEscapeString(seg)}'`; // Object key
+            if (seg.match(/^\d+$/)) pgPath += seg;
+            else pgPath += `'${sqlEscapeString(seg)}'`;
         });
         return pgPath;
+
     } else if (dbDialect === 'snowflake') {
-        // Base access string, defaults to direct column access
         let sfAccessBase = `${pathPrefix}"${rootDbColumnName}"`;
-
         const needsParsing = pathWithinRoot || forFlattenInput;
-
         if (needsParsing) {
             sfAccessBase = `parse_json(${pathPrefix}"${rootDbColumnName}"::variant)`;
         }
-
         if (!pathWithinRoot) {
             return sfAccessBase;
         }
@@ -45,54 +49,58 @@ const buildBaseAccessPath = (fullItemPath, rootDbColumnName, dbDialect, tableAli
         let sfPath = sfAccessBase;
         const pathParts = pathWithinRoot.replace(/\[(\d+)\]/g, '[$1]').split('.');
         pathParts.forEach(part => {
-            if (part.startsWith('[') && part.endsWith(']')) { // Array index
-                sfPath += part;
-            } else { // Object key
-                sfPath += `:${part.replace(/:/g, "\\:")}`;
-            }
+            if (part.startsWith('[') && part.endsWith(']')) sfPath += part;
+            else sfPath += `:${part.replace(/:/g, "\\:")}`;
         });
         return forFlattenInput ? sfPath : `${sfPath}::VARCHAR`;
+
+    } else if (dbDialect === 'sqlserver') {
+        const baseCol = `${pathPrefix}"${rootDbColumnName}"`;
+        const sqlServerPath = toSQLServerJsonPath(pathWithinRoot);
+        
+        const func = forFlattenInput ? 'JSON_QUERY' : 'JSON_VALUE';
+        return `${func}(${baseCol}, '${sqlServerPath}')`;
     }
     // Fallback for unsupported dialect
     return `"${fullItemPath}"`;
 };
 
 const buildPathWithinElement = (elementBase, valuePathWithin, dbDialect) => {
-    // elementBase is like 'f0.value' (Snowflake) or 'flat_alias.element_value' (PostgreSQL)
-    // This element is already a JSON object/variant, so no initial parse_json needed here.
-
     if (dbDialect === 'postgresql') {
-        let pgPath = elementBase; // This will be jsonb if coming from jsonb_array_elements
-        if (!valuePathWithin) return `${pgPath}::text`; // Cast jsonb to text
+        let pgPath = elementBase;
+        if (!valuePathWithin) return `${pgPath}::text`;
 
         const segments = valuePathWithin.replace(/\[(\d+)\]/g, '.$1').split('.');
         segments.forEach((seg, idx) => {
-            pgPath += (idx === segments.length - 1 ? '->>' : '->'); // -> on jsonb returns jsonb, ->> returns text
+            pgPath += (idx === segments.length - 1 ? '->>' : '->');
             if (seg.match(/^\d+$/)) pgPath += seg;
             else pgPath += `'${sqlEscapeString(seg)}'`;
         });
         return pgPath;
+
     } else if (dbDialect === 'snowflake') {
-        let sfPath = elementBase; // e.g., f0.value which is a VARIANT
+        let sfPath = elementBase;
         if (!valuePathWithin) return `${sfPath}::VARCHAR`;
 
         const pathParts = valuePathWithin.replace(/\[(\d+)\]/g, '[$1]').split('.');
         pathParts.forEach(part => {
-            if (part.startsWith('[') && part.endsWith(']')) {
-                sfPath += part;
-            } else {
-                sfPath += `:${part.replace(/:/g, "\\:")}`;
-            }
+            if (part.startsWith('[') && part.endsWith(']')) sfPath += part;
+            else sfPath += `:${part.replace(/:/g, "\\:")}`;
         });
         return `${sfPath}::VARCHAR`;
+
+    } else if (dbDialect === 'sqlserver') {
+        const sqlServerPath = toSQLServerJsonPath(valuePathWithin);
+        return `JSON_VALUE(${elementBase}, '${sqlServerPath}')`;
     }
     // Fallback
     return `${elementBase}${valuePathWithin ? '.' + valuePathWithin : ''}`;
 };
 
+
 export const generateSQL = (visibleColumns, dialect = 'snowflake') => {
     try {
-        const tableName = 'json_data'; // Note: Your example query uses 'cloudtrail_logs'. This might need to be configurable.
+        const tableName = 'json_data';
         const columns = visibleColumns;
 
         if (!columns || columns.length === 0) {
@@ -100,7 +108,7 @@ export const generateSQL = (visibleColumns, dialect = 'snowflake') => {
         }
 
         const mainTableAlias = "e";
-        let fromParts = [`"${tableName}" AS "${mainTableAlias}"`]; // Adjust if your table name is different
+        let fromParts = [`"${tableName}" AS "${mainTableAlias}"`];
         let selectExpressions = [];
         let whereConditions = [];
         let flattenCounter = 0;
@@ -122,29 +130,35 @@ export const generateSQL = (visibleColumns, dialect = 'snowflake') => {
 
                 if (dialect === 'postgresql') {
                     const pgPathToArrForFlatten = buildBaseAccessPath(fullPathToArray, rootForArrayPath, 'postgresql', mainTableAlias, true);
-                    // MODIFICATION: Added ::jsonb cast to the input of jsonb_array_elements
                     fromParts.push(`, LATERAL jsonb_array_elements((${pgPathToArrForFlatten})::jsonb) AS ${flattenAlias}(element_value)`);
-                    
                     const selectPath = buildPathWithinElement(`${flattenAlias}.element_value`, valueFieldPathWithinElement, 'postgresql');
                     selectExpressions.push(`${selectPath} AS "${uiColumnAlias}"`);
-                    
-                    // element_value is jsonb, ->> extracts text for comparison
                     whereConditions.push(`${flattenAlias}.element_value->>'${sqlEscapeString(keyFieldInArrayElement)}' = '${sqlEscapeString(keyValueInArrayElement)}'`);
+
                 } else if (dialect === 'snowflake') {
                     const sfPathToArrForFlatten = buildBaseAccessPath(fullPathToArray, rootForArrayPath, 'snowflake', mainTableAlias, true);
                     fromParts.push(`, LATERAL FLATTEN(input => ${sfPathToArrForFlatten}) AS ${flattenAlias}`);
-
                     const selectPath = buildPathWithinElement(`${flattenAlias}.value`, valueFieldPathWithinElement, 'snowflake');
                     selectExpressions.push(`${selectPath} AS "${uiColumnAlias}"`);
-                    
-                    let keyAccessPath = `${flattenAlias}.value`; 
+                    let keyAccessPath = `${flattenAlias}.value`;
                     const keyFieldParts = keyFieldInArrayElement.replace(/\[(\d+)\]/g, '[$1]').split('.');
-                     keyFieldParts.forEach(part => {
+                    keyFieldParts.forEach(part => {
                         if (part.startsWith('[') && part.endsWith(']')) keyAccessPath += part;
                         else keyAccessPath += `:${part.replace(/:/g, "\\:")}`;
                     });
                     whereConditions.push(`${keyAccessPath}::VARCHAR = '${sqlEscapeString(keyValueInArrayElement)}'`);
+
+                } else if (dialect === 'sqlserver') {
+                    const ssPathToArrForFlatten = buildBaseAccessPath(fullPathToArray, rootForArrayPath, 'sqlserver', mainTableAlias, true);
+                    fromParts.push(`CROSS APPLY OPENJSON(${ssPathToArrForFlatten}) AS ${flattenAlias}`);
+                    
+                    const selectPath = buildPathWithinElement(`${flattenAlias}.value`, valueFieldPathWithinElement, 'sqlserver');
+                    selectExpressions.push(`${selectPath} AS "${uiColumnAlias}"`);
+
+                    const keyPathForWhere = toSQLServerJsonPath(keyFieldInArrayElement);
+                    whereConditions.push(`JSON_VALUE(${flattenAlias}.value, '${keyPathForWhere}') = '${sqlEscapeString(keyValueInArrayElement)}'`);
                 }
+
             } else { // Simple path like "id" or "user.name"
                 selectExpressions.push(`${buildBaseAccessPath(col, rootDbColumnName, dialect, mainTableAlias, false)} AS "${uiColumnAlias}"`);
             }

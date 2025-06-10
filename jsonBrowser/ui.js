@@ -60,14 +60,17 @@ function trapFocusInModal(e) {
 const scrollToCurrentSearchResult = () => {
   const currentResultElement = document.querySelector('.highlight.current');
   if (currentResultElement) {
-    const rect = currentResultElement.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) { 
-        currentResultElement.scrollIntoView({
-          behavior: 'smooth', 
-          block: 'center', 
-          inline: 'nearest' 
-        });
-    }
+    // The element might be inside a container that is animating its max-height.
+    // At the moment this function is called (via requestAnimationFrame), the
+    // element's getBoundingClientRect() might return a height of 0.
+    // Calling scrollIntoView() is the correct action, as the browser will
+    // scroll to the element's final position. The previous dimension check
+    // was preventing this for elements inside an expanding container.
+    currentResultElement.scrollIntoView({
+      behavior: 'smooth', 
+      block: 'center', 
+      inline: 'nearest' 
+    });
   }
 };
 
@@ -384,9 +387,20 @@ const renderNestedObject = (obj, basePath, rowIndex) => {
 
       if (isArrayOfObjects) { 
           const headers = Array.from(columnKeys).sort(); 
-          let headerRow = '<tr>'; 
+          let headerRow = '<tr>';
+          const currentResult = state.searchResults[state.currentSearchIndex];
           headers.forEach(header => {
-              headerRow += `<th>${highlightText(header, state.searchQuery, false)}</th>`;
+              let isCurrentHeaderHighlight = false;
+              // Check if this header key is the currently active search result.
+              if (currentResult &&
+                  currentResult.rowIndex === rowIndex &&
+                  currentResult.matchedPart === 'key' &&
+                  currentResult.matchedKeyName &&
+                  currentResult.matchedKeyName.toLowerCase() === header.toLowerCase() &&
+                  currentResult.path.startsWith(basePath + '[')) {
+                  isCurrentHeaderHighlight = true;
+              }
+              headerRow += `<th>${highlightText(header, state.searchQuery, isCurrentHeaderHighlight)}</th>`;
           });
           headerRow += '</tr>';
           let bodyRows = obj.map((item, index) => {
@@ -557,6 +571,8 @@ const renderSqlModal = () => {
             <select id="sql-dialect-select" data-action="change-dialect" style="margin-right: 10px;">
               <option value="snowflake" ${state.sqlDialect === 'snowflake' ? 'selected' : ''}>Snowflake</option>
               <option value="postgresql" ${state.sqlDialect === 'postgresql' ? 'selected' : ''}>PostgreSQL</option>
+              <option value="sqlserver" ${state.sqlDialect === 'sqlserver' ? 'selected' : ''}>SQL Server</option>
+              
             </select>
             <button data-action="copy-sql" style="margin-right: 10px;">Copy</button>
             <button class="close-btn" data-action="close-sql" aria-label="Close SQL modal">×</button>
