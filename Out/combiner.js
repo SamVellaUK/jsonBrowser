@@ -15,7 +15,7 @@ async function combineFiles() {
         const uiJsFilePath = path.join(scriptDir, '../jsonBrowser/ui.js');
         const entryPointJsFilePath = path.join(scriptDir, '../jsonBrowser/jsonBrowser.js');
 
-        const outputFilePath = path.join(scriptDir, 'jsonBrowser_standalone.html');
+        const outputFilePath = path.join(scriptDir, '../jsonBrowser.html');
 
         let htmlContent = await fs.readFile(htmlFilePath, 'utf8');
         const cssContent = await fs.readFile(cssFilePath, 'utf8');

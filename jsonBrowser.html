@@ -242,9 +242,19 @@ body {
     background-color: #fd7e14; /* Orange */
     border-color: #fd7e14;
 }
+
 .function-controls-group button[data-action="show-csv"]:hover {
     background-color: #e36702;
     border-color: #d96102;
+}
+
+.function-controls-group button[data-action="show-help"] { /* Specific style for help */
+    background-color: #28a745; 
+    border-color: #28a745;
+}
+.function-controls-group button[data-action="show-help"]:hover { /* Specific style for help */
+    background-color: #1acb00; /* Lighter green for hover */
+    border-color: #1acb00;
 }
 
 /* Info text in Header */
@@ -946,6 +956,7 @@ const createReactiveState = (initial) => {
     showCsvModal: false,          // Controls visibility of the CSV export modal
     csvOutputContent: '',       // Holds the generated CSV string
     darkModeActive: false, // Add this
+    showHelpModal: false,       // Controls visibility of the Help/About modal
   });
 
 // --- END OF INLINED state.js ---
@@ -1496,6 +1507,34 @@ const renderCsvModal = () => {
     </div>
   `;
 };
+
+const renderHelpModal = () => {
+    if (!state.showHelpModal) return '';
+    const releaseDate = '2025-06-11'; // Example date
+    const authorName = "Sam Vella"; // Placeholder
+    const githubLink = "https://github.com/SamVellaUK/jsonBrowser"; // Placeholder
+    return `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
+        <div id="help-modal-content-wrapper" class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="help-modal-title">Help / About</h3>
+                <button class="close-btn" data-action="close-help" aria-label="Close help modal">×</button>
+            </div>
+            <div class="help-modal-body" style="font-size: 14px; line-height: 1.6;">
+                <p><strong>Author:</strong> ${authorName}</p>
+                <p><strong>Release version:</strong> ${releaseDate}</p>
+                <p><strong>Licence info:</strong> GPL-3.0 license</p>
+                <hr style="margin: 15px 0;">
+                <p><strong>Updates and Instructions at</strong></p>
+                <p>
+                    <strong></strong> 
+                    <a href="${githubLink}" target="_blank" rel="noopener noreferrer">${githubLink}</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    `;
+};
   
 const renderHeader = () => {
   const hiddenCount = state.searchResults.filter(result => {
@@ -1563,6 +1602,8 @@ const renderHeader = () => {
         <button data-action="show-sql" title="Generate SQL (CREATE TABLE and INSERT statements) from current view">SQL</button>
         <button data-action="show-json" title="View or edit the raw JSON/CSV/TSV data">View/Edit Data</button>
         <button data-action="show-csv" title="Export current table view as CSV">Export CSV</button>
+
+        <button data-action="show-help" title="Help / About">Help</button>
       </div>
     </div>
   `;
@@ -2131,6 +2172,7 @@ const render = () => {
     ${renderPromoteKeyPopover()}
     ${renderAddColumnPopover()} 
     ${renderCsvModal()} 
+    ${renderHelpModal()}
   `;
 
   // Add event listener to the SQL modal's select to stop click propagation
@@ -2249,7 +2291,6 @@ const render = () => {
 // --- END OF INLINED ui.js ---
 
 // --- START OF INLINED basic.js (entry point) ---
-
 // basic.js
 
 // Assuming debounce is in utils.js, otherwise define it here or let lastExecutedSearchQuery = null; // Keep this to know if a search has been made
@@ -2382,6 +2423,10 @@ const handleKeyboard = (e) => {
         e.preventDefault();
         closeModalFocus('.modal[aria-labelledby="csv-modal-title"]');
         state.showCsvModal = false; state.notify('showCsvModal');
+    } else if (state.showHelpModal && inModal) {
+        e.preventDefault();
+        closeModalFocus('.modal[aria-labelledby="help-modal-title"]');
+        state.showHelpModal = false; state.notify('showHelpModal');
     } else if (state.showJsonModal && inModal && !jsonEditAreaFocused) { 
         e.preventDefault();
         closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
@@ -2801,7 +2846,15 @@ const handleEvent = (e) => {
         }
       }
       break;
-
+    case 'show-help':
+        state.showHelpModal = true;
+        state.notify('showHelpModal');
+        break;
+    case 'close-help':
+        closeModalFocus('.modal[aria-labelledby="help-modal-title"]');
+        state.showHelpModal = false;
+        state.notify('showHelpModal');
+        break;
   }
 };
 
@@ -2860,6 +2913,7 @@ const init = async () => {
         const wasSqlModalVisible = !!document.querySelector('.modal[aria-labelledby="sql-modal-title"]');
         const wasJsonModalVisible = !!document.querySelector('.modal[aria-labelledby="json-modal-title"]');
         const wasCsvModalVisible = !!document.querySelector('.modal[aria-labelledby="csv-modal-title"]');
+        const wasHelpModalVisible = !!document.querySelector('.modal[aria-labelledby="help-modal-title"]');
         const wasAddColumnPopoverVisible = !!document.getElementById('add-column-popover'); // Check actual element existence
         const wasPromotePopoverVisible = !!document.getElementById('promote-key-popover'); // Check actual element existence
         
@@ -2874,6 +2928,7 @@ const init = async () => {
             }
         }
         if (state.showCsvModal && !wasCsvModalVisible) openModalFocus('.modal[aria-labelledby="csv-modal-title"]');
+        if (state.showHelpModal && !wasHelpModalVisible) openModalFocus('.modal[aria-labelledby="help-modal-title"]');
         // For popovers, focus logic is often tied to their anchor or first focusable element within.
         // openModalFocus for popovers should be called after they are rendered and visible.
         if (state.showAddColumnPopover && !wasAddColumnPopoverVisible) {
