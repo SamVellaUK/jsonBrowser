@@ -235,9 +235,19 @@ body {
     background-color: #fd7e14; /* Orange */
     border-color: #fd7e14;
 }
+
 .function-controls-group button[data-action="show-csv"]:hover {
     background-color: #e36702;
     border-color: #d96102;
+}
+
+.function-controls-group button[data-action="show-help"] { /* Specific style for help */
+    background-color: #28a745; 
+    border-color: #28a745;
+}
+.function-controls-group button[data-action="show-help"]:hover { /* Specific style for help */
+    background-color: #1acb00; /* Lighter green for hover */
+    border-color: #1acb00;
 }
 
 /* Info text in Header */

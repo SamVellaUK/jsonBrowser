@@ -1,4 +1,3 @@
-
 // basic.js
 
 import { state } from './state.js';
@@ -136,6 +135,10 @@ const handleKeyboard = (e) => {
         e.preventDefault();
         closeModalFocus('.modal[aria-labelledby="csv-modal-title"]');
         state.showCsvModal = false; state.notify('showCsvModal');
+    } else if (state.showHelpModal && inModal) {
+        e.preventDefault();
+        closeModalFocus('.modal[aria-labelledby="help-modal-title"]');
+        state.showHelpModal = false; state.notify('showHelpModal');
     } else if (state.showJsonModal && inModal && !jsonEditAreaFocused) { 
         e.preventDefault();
         closeModalFocus('.modal[aria-labelledby="json-modal-title"]');
@@ -555,7 +558,15 @@ const handleEvent = (e) => {
         }
       }
       break;
-
+    case 'show-help':
+        state.showHelpModal = true;
+        state.notify('showHelpModal');
+        break;
+    case 'close-help':
+        closeModalFocus('.modal[aria-labelledby="help-modal-title"]');
+        state.showHelpModal = false;
+        state.notify('showHelpModal');
+        break;
   }
 };
 
@@ -614,6 +625,7 @@ const init = async () => {
         const wasSqlModalVisible = !!document.querySelector('.modal[aria-labelledby="sql-modal-title"]');
         const wasJsonModalVisible = !!document.querySelector('.modal[aria-labelledby="json-modal-title"]');
         const wasCsvModalVisible = !!document.querySelector('.modal[aria-labelledby="csv-modal-title"]');
+        const wasHelpModalVisible = !!document.querySelector('.modal[aria-labelledby="help-modal-title"]');
         const wasAddColumnPopoverVisible = !!document.getElementById('add-column-popover'); // Check actual element existence
         const wasPromotePopoverVisible = !!document.getElementById('promote-key-popover'); // Check actual element existence
         
@@ -628,6 +640,7 @@ const init = async () => {
             }
         }
         if (state.showCsvModal && !wasCsvModalVisible) openModalFocus('.modal[aria-labelledby="csv-modal-title"]');
+        if (state.showHelpModal && !wasHelpModalVisible) openModalFocus('.modal[aria-labelledby="help-modal-title"]');
         // For popovers, focus logic is often tied to their anchor or first focusable element within.
         // openModalFocus for popovers should be called after they are rendered and visible.
         if (state.showAddColumnPopover && !wasAddColumnPopoverVisible) {

@@ -64,4 +64,5 @@ export const createReactiveState = (initial) => {
     showCsvModal: false,          // Controls visibility of the CSV export modal
     csvOutputContent: '',       // Holds the generated CSV string
     darkModeActive: false, // Add this
+    showHelpModal: false,       // Controls visibility of the Help/About modal
   });

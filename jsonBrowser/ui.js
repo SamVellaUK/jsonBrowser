@@ -173,6 +173,34 @@ const renderCsvModal = () => {
     </div>
   `;
 };
+
+const renderHelpModal = () => {
+    if (!state.showHelpModal) return '';
+    const releaseDate = '2025-06-11'; // Example date
+    const authorName = "Sam Vella"; // Placeholder
+    const githubLink = "https://github.com/SamVellaUK/jsonBrowser"; // Placeholder
+    return `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
+        <div id="help-modal-content-wrapper" class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="help-modal-title">Help / About</h3>
+                <button class="close-btn" data-action="close-help" aria-label="Close help modal">×</button>
+            </div>
+            <div class="help-modal-body" style="font-size: 14px; line-height: 1.6;">
+                <p><strong>Author:</strong> ${authorName}</p>
+                <p><strong>Release version:</strong> ${releaseDate}</p>
+                <p><strong>Licence info:</strong> GPL-3.0 license</p>
+                <hr style="margin: 15px 0;">
+                <p><strong>Updates and Instructions at</strong></p>
+                <p>
+                    <strong></strong> 
+                    <a href="${githubLink}" target="_blank" rel="noopener noreferrer">${githubLink}</a>
+                </p>
+            </div>
+        </div>
+    </div>
+    `;
+};
   
 const renderHeader = () => {
   const hiddenCount = state.searchResults.filter(result => {
@@ -240,6 +268,8 @@ const renderHeader = () => {
         <button data-action="show-sql" title="Generate SQL (CREATE TABLE and INSERT statements) from current view">SQL</button>
         <button data-action="show-json" title="View or edit the raw JSON/CSV/TSV data">View/Edit Data</button>
         <button data-action="show-csv" title="Export current table view as CSV">Export CSV</button>
+
+        <button data-action="show-help" title="Help / About">Help</button>
       </div>
     </div>
   `;
@@ -808,6 +838,7 @@ export const render = () => {
     ${renderPromoteKeyPopover()}
     ${renderAddColumnPopover()} 
     ${renderCsvModal()} 
+    ${renderHelpModal()}
   `;
 
   // Add event listener to the SQL modal's select to stop click propagation
