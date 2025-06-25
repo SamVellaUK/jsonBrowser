@@ -6,6 +6,10 @@
 Download and open **jsonBrowser.html** from the project root directory.  
 Copy and paste SQL query results from your SQL Query tool into the textbox and hit "Apply"
 
+Datagrip - ensure the Data Extractor is set to CSV
+SQL Server Management Studio - Copy with headers
+DBeaver - Right click -> Advanced Copy -> Copy as CSV 
+
 ---
 
 ## Introduction
